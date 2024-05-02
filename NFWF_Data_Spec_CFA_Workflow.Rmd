@@ -1,13 +1,14 @@
 ---
 title: "Destin Charter Fishermen's Association Implementation Plan"
-#author: "Katie Harrington"
 date: "`r Sys.Date()`"
 output: html_document
-#  word_document:
-#    reference_docx: stylings.docx
+# change to a word doc every now and again to check foramtting and to disseminate final version
+# ouput: word_document 
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE} 
+# Set global options for code chunks
+# New defaults are to evaluate code, include outputs, include the code, do not include messages or warnings
 knitr::opts_chunk$set(echo = TRUE, include=TRUE, message=FALSE, warning=FALSE)
 ```
 
@@ -28,7 +29,7 @@ Figure 1. Diagram depicting the proposed workflow of the Destin Charter Fisherme
     b. **Mapping products:** Real-time fisheries reports are shown as grids/heat maps overlaid on a digital basemap, including selectable environment layers (surface temperature or water clarity; via remote sensing) in the future.
     c. **Web-based application:** Potential platforms/developers to be determined by network participants. The website requires a user to register for an account in order to password-protect access to the grouped data as well as display personalized information, a history of recorded observations, and point data that is user-specific. The app must be scalable in order to maintain performance while under an increased load. Participants are estimated to record tens to hundreds of observations per day.
 
-```{r Dropdown menus, eval=FALSE}
+```{r Step 2(a), eval=FALSE}
 
 # 2(a). Data is recorded through simple inputs
 selectInput("current_input", label = "Current Intensity", choices = c("None", "Moderate", "High"), selected = "None")
@@ -52,7 +53,7 @@ selectInput("species_input", label = "Species Encountered", choices = c("None", 
     c. **Map integration:** Leaflet, or another platform such as Google Maps API,  is used for interactive displays of map data. The basemap utilizes provider tiles such as the “Esri National Geographic Style Basemap” or the “Esri World Ocean Basemap” to include basic bathymetric visualizations. The map also displays the relative current location of the vessel using a geolocation API. Layers for the density rasters and grid polygons are reactive to user-specified inputs (e.g. species to display, time period to view) are displayed when toggled. The user can obtain coordinates from the map by mousing-over it. Spatial linkage for grid performed with XXXX. Heatmap display uses XXXX. Publically available environmental data processed by XXX.
     d. **Depredation model:** Network-reported depredation modeled with environmental data updated on rolling basis - FUTURE OPTION or ACTION ITEM?
     
-``` {r Step 5}
+``` {r Step 5(c)}
 
 library(tidyverse)
 library(leaflet)
