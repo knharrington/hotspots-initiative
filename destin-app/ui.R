@@ -38,14 +38,8 @@
                                                 strong("Total Observations"),
                                                 verbatimTextOutput("text_obs", placeholder=FALSE),
                                                 p(" "),
-                                                #selectInput("region", "Region", choices = c("Destin", "Galveston"), selected="Destin"),
-                                                sliderTextInput("days", "Days since Reporting", choices=seq(from=14, to=1, by=-1), selected=c(2,1), grid=TRUE),
-                                                #sliderInput("effort", "Vessels Reporting", max=max(noaa_vl_des$Effort_ID), min=min(noaa_vl_des$Effort_ID), value=c(max(noaa_vl_des$Effort_ID)), step=5, round=TRUE),
-                                                #checkboxGroupInput("seasons", "Season", choices = c("Spring", "Summer", "Fall", "Winter"), selected = c("Spring", "Summer", "Fall", "Winter")),
-                                                #radioButtons("show_maps", "Display Data", c("Catch Events", "Catch Per Unit Effort*"), selected = "Catch Events"),
-                                                #checkboxGroupInput("rasters", "Environmental**", choices = c("Spring", "Summer", "Fall", "Winter"), selected = NULL),
-                                                #radioButtons("grid.scale", "Catch per Unit Effort Grid Scale", choices = c("10' square" = "grid.sq10", "5' square" = "grid.sq5", "2.5' square" = "grid.sq2.5")),
-                                                radioGroupButtons("switch_current", "Display Current Intensity", choices = c("Yes", "No"), selected="No"),
+                                                sliderTextInput("days", "Days since Reporting", choices=seq(from=1, to=14, by=1), selected=c(2), grid=TRUE),
+                                                radioGroupButtons("radio_current", "Display Current Intensity", choices = c("Yes", "No"), selected="No"),
                                                 fluidRow(
                                                   column(width=6, radioGroupButtons("radio_depred", "Display Depredation", choices=c("Total", "Sharks", "Dolphins"), selected="Total")),
                                                   column(width=6, radioGroupButtons("radio_layer", "Layer Style", choices=c("Intensity (grid)", "Density (heat)"), selected="Intensity (grid)"))
@@ -97,7 +91,11 @@
                                            
                                            DTOutput("sheet_data")
                                            
-                                           ) #tabPanel 2
+                                           ), #tabPanel 2
+                                         tabPanel("User Data", icon=icon("user"),
+                                                  
+                                            DTOutput("user_data") 
+                                         ) #tabPanel 3
                                                                      #textOutput("radio.txt"),
                                                                      #tableOutput("trouble"),
                                                                        #tableOutput("trouble2")
