@@ -136,5 +136,17 @@ boat_icon <- makeIcon(iconUrl = "www/boat2.svg",
                       iconAnchorX=15, iconAnchorY=15)
 html_legend <- "<img src='boat2.svg' style='width:35px;height:30px;'> Current Location<br/>"
 
+current_speed <- fread("data/Oceanic_current_speed.csv") %>%
+  dplyr::select(Longitude, Latitude, Oceanic_current_speed_October) %>%
+  rename("Speed_Oct" = "Oceanic_current_speed_October") %>%
+  mutate(class_bin = case_when(
+    Speed_Oct >= 0.5 ~ 3,
+    Speed_Oct >= 0.3 ~ 2,
+    Speed_Oct < 0.3 ~ 1
+    )
+  )
+
+#summary(current_speed)
+
 #save(gridshp, sheet_id, noaa_data, noaa_vl_des, file = "destin-app/data/preprocess.RData")
-save(gridshp, sheet_id, noaa_data, noaa_vl_des, boat_icon, html_legend, file = "data/preprocess.RData")
+save(gridshp, sheet_id, noaa_data, noaa_vl_des, boat_icon, html_legend, current_speed, file = "data/preprocess.RData")
