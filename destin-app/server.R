@@ -41,19 +41,9 @@ function(input, output, session) {
     user_id <- session$userData$user_id
     
     # Check if the user wants to use the current location
-    lat <- if (input$check_loc == "Yes") {
-      NA #input$user_lat
-    } else {
-      as.numeric(input$text_lat)
-    }
-    
-    if (is.na(lat) || lat < 29 || lat > 32) {
-      showNotification("Please enter a valid latitude between 29N and 32N.", type = "error")
-      return(NULL)  # Stop further execution if latitude is invalid
-    }
     
     lon <- if (input$check_loc == "Yes") {
-      NA #input$user_long  
+      -83#NA #input$user_long  
     } else {
       as.numeric(input$text_long)
     }
@@ -61,6 +51,17 @@ function(input, output, session) {
     if (is.na(lon) || lon > -83 || lon < -89) {
       showNotification("Please enter a valid longitude between -89W and -83W.", type = "error")
       return(NULL)  # Stop further execution if longitude is invalid
+    }
+    
+    lat <- if (input$check_loc == "Yes") {
+      29#NA #input$user_lat
+    } else {
+      as.numeric(input$text_lat)
+    }
+    
+    if (is.na(lat) || lat < 29 || lat > 32) {
+      showNotification("Please enter a valid latitude between 29N and 32N.", type = "error")
+      return(NULL)  # Stop further execution if latitude is invalid
     }
     
     notes <- if (input$text_notes == "") {
@@ -127,26 +128,27 @@ function(input, output, session) {
     data_store$data
   })
   #})
-#######
+
+################################################################################
+# deal with currents dataset
+ 
   
-boat_icon <- makeIcon(iconUrl = "www/boat2.svg",
-                      iconWidth=35, iconHeight=30, 
-                      iconAnchorX=15, iconAnchorY=15)
-html_legend <- "<img src='boat2.svg' style='width:35px;height:30px;'> Current Location<br/>"
- 
- 
+# filter dataset based on user inputs  
 filtered_prop <- reactive({
-    noaa_vl_des %>% filter(Days_Report >= input$days[2],
-                           Days_Report <= input$days[1])#,
+    noaa_vl_des %>% filter(Days_Report <= input$days[1])#,
+                           #Days_Report <= input$days[1])#,
                            #Effort_ID <= input$effort)
 })
 
-
+# check number of vessels included
+  # dep_vess <- noaa_vl_des %>% filter(Days_Report == 1, 
+  #                                    CONDITION == "DEAD")
+  # n_distinct(dep_vess$VESSEL_ID)
 
 noaa_vl_prop <- reactive({
   filtered_prop() %>% 
   filter(!is.na(LAT_BEGIN_SET) & !is.na(LON_BEGIN_SET)) %>%
-  group_by(UNIQUE_RETRIEVAL, COMMON_NAME) %>%
+  group_by(UNIQUE_RETRIEVAL, COMMON_NAME, VESSEL_ID) %>%
   mutate(
     NUM_ALIVE = sum(NUM_FISH[CONDITION %in% c('ALIVE', 'ALIVE BAURO - STOM/BLADDER', 'ALIVE BAURO - EYES', 'ALIVE BAURO - BOTH')]),
     NUM_DEAD = sum(NUM_FISH[CONDITION == 'DEAD']),
@@ -156,7 +158,6 @@ noaa_vl_prop <- reactive({
     )
 })
 
-
 # Convert the data frame to a spatial object
 noaa_vl_prop_sf <- reactive({st_as_sf(noaa_vl_prop(), coords = c("UNIQUE_RET_LON", "UNIQUE_RET_LAT"), crs = st_crs(gridshp))})
 
@@ -164,11 +165,17 @@ noaa_vl_prop_sf <- reactive({st_as_sf(noaa_vl_prop(), coords = c("UNIQUE_RET_LON
 grid_join <- reactive({setDT(st_join(noaa_vl_prop_sf(), gridshp, join = st_intersects))})
 #grid_join_dt <- setDT(grid_join)
 
-# Filter and aggregate the data
-filtered_data <- reactive({grid_join()[!is.na(PROP_DEAD), #& COMMON_NAME == 'SNAPPER, RED',
-                              .(PROP_DEAD.mean = mean(PROP_DEAD, na.rm = TRUE)),
-                              by = GRID_ID]})
-#filtered_data <- filtered_data[!is.na(GRID_ID)]
+# filter and aggregate the data if the cells contain at least 3 vessels contributing
+filtered_data <- reactive({
+  grid_join() %>%
+    group_by(GRID_ID) %>%
+    summarise(
+      PROP_DEAD.mean = mean(PROP_DEAD, na.rm = TRUE),  # Calculate the mean PROP_DEAD for each grid
+      num_points = n(),  # Count the number of points in each grid
+      unique_vessel_ids = n_distinct(VESSEL_ID)  # Count unique VESSEL_IDs in each grid
+    ) %>%
+    filter(num_points >= 3 & unique_vessel_ids >= 3)  # Apply the filtering condition: at least 3 points and at least 3 unique VESSEL_IDs
+})
 
 filtered_data2 <- reactive({
   filtered_data() %>%
@@ -178,76 +185,38 @@ filtered_data2 <- reactive({
     PROP_DEAD.mean == 0 ~ 'None',
     PROP_DEAD.mean <= 0.10 ~ 'Moderate',
     PROP_DEAD.mean > 0.10 ~ 'High'
-  )) #%>%
-  #mutate(classification = factor(classification,
-                                 #levels = c("None", "Moderate", "High")))
+    )
+  )
 })
-
 
 # Merge the results back with the grid shapefile
 gridvalues <- reactive({st_as_sf(merge(x = gridshp, y = filtered_data2(), by = "GRID_ID", all.x = FALSE))})
 
-
+grid_centroids <- reactive({
+  st_centroid(gridvalues())
+})
 
 vl_prop_mh <- reactive({
   noaa_vl_prop() %>%
     filter(NUM_DEAD > 0)
 })
 
-# #Point density
-# coords <- reactive({
-#   as.matrix(vl_prop_mh()[, c("UNIQUE_RET_LON", "UNIQUE_RET_LAT")])
-# })
-# bandwidth_x <- reactive({
-#   ks::hpi(coords()[ , "UNIQUE_RET_LON"])
-# })
-# bandwidth_y <- reactive({
-#   ks::hpi(coords()[ , "UNIQUE_RET_LAT"])
-# })
-# kde <- reactive({
-#   bkde2D(coords(), bandwidth = c(bandwidth_x(), bandwidth_y()), gridsize=c(1000,1000))
-# })
-# 
-# kdraster <- reactive({
-#   raster(list(x=kde()$x1, y=kde()$x2, z=kde()$fhat))
-# })
-# 
-# values_fhat <- reactive({
-#   kde()$fhat
-# })
-# 
-# heat_values <- reactive({
-#   temp <- values_fhat()
-#   temp[temp < 0.15] <- NA
-#   return(temp)
-# })
-# 
-# pal_heat <- reactive({
-#   colorNumeric("Spectral", domain = heat_values(), na.color="transparent", reverse=TRUE)
-# })
 
-# pro_popup2 <- reactive({paste0("<br><strong>Average Fish Damaged: </strong>", round(pro_gridvalues()$Number_damaged, digits=2))
-# })
-
-#wind_data <- fromJSON("wind-global.json")
-
-# need to make this into an observer duo for the popups to work and for it to be reactive
+# map with proxy
   output$examplemap <- renderLeaflet({
-    # colors <- c("#7e911d", "#fdcb2f", "#ae002d")
-    # pro_levels <- c("None", "Moderate", "High")
-    # pro_pal <- colorFactor(colors, levels=pro_levels, domain=gridvalues()$classification)
-    # popper <- paste0("<strong>Proportion Dead: </strong>", round(gridvalues()$PROP_DEAD.mean, digits = 2))
     showNotification("Update map in order to view data", duration=20, closeButton=TRUE)
     leaflet() %>%
-      #addProviderTiles("Esri.OceanBasemap", options = providerTileOptions(variant = "Ocean/World_Ocean_Base")) %>%
-      #addProviderTiles("Esri.OceanBasemap", options = providerTileOptions(variant = "Ocean/World_Ocean_Reference")) %>%
-      addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 5, maxZoom = 11)) %>%
+      addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 5, maxZoom = 10)) %>%
       setView(lng=-86.75, lat=29.75, zoom=9)  %>%
       addScaleBar(position = 'topleft',
                   options = scaleBarOptions(maxWidth = 100, metric = TRUE, imperial = TRUE, updateWhenIdle = FALSE)) 
   })
   
   observeEvent(input$update, {
+    
+    #print(nrow(gridvalues()))
+    #print(filtered_data())
+    #print(grid_centroids())
     
     colors <- c("#18bc9c", "#f39c12", "#e74c3c")
     pro_levels <- c("None", "Moderate", "High")
@@ -257,12 +226,24 @@ vl_prop_mh <- reactive({
     valid_data <- data_store$data %>%
       dplyr::filter(!is.na(latitude) & !is.na(longitude))
     
-    leafletProxy("examplemap") %>%
+    proxy <- leafletProxy("examplemap")
+      
+    proxy %>% 
       clearHeatmap() %>%
       clearShapes() %>%
       clearImages() %>%
       clearControls() %>%
-      leafem::addMouseCoordinates() %>%
+      leafem::addMouseCoordinates()%>%
+      addMarkers(lng=-86.3,
+                 lat=30.25, icon=boat_icon) %>%
+      addSimpleGraticule(interval = 1, 
+                         group = "Graticule") %>%
+      addControl(html=html_legend, position="topright") %>%
+      addLayersControl(position="topleft", overlayGroups = c("Graticule"), 
+                       options=layersControlOptions(collapsed=FALSE))
+    
+    if (input$radio_depred == "Total" & input$radio_layer == "Intensity (grid)"){
+    proxy %>%
       addPolygons(data = gridvalues(),
                   fillColor = ~pro_pal(classification),
                   weight = 0.5,
@@ -271,69 +252,63 @@ vl_prop_mh <- reactive({
                   highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
                   popup = ~popper,
                   group = "Depredation Intensity") %>%
-      # addMarkers(
-      #   data=valid_data,
-      #   lng=~as.numeric(longitude),
-      #   lat=~as.numeric(latitude),
-      #   popup=~paste("Species:", species, "<br>",
-      #                "Current Intensity:", current, "<br>",
-      #                "Depredation Intensity:", depred, "<br>",
-      #                "Notes:", notes)
-      # ) %>%
-      # addCircles(lng = filtered_data()$Longitude,
-      #            lat = filtered_data()$Latitude,
-      #            radius = 6,
-      #            #opacity = opacity(),
-      #            color = "black",
-      #            group = "Point Data") %>%
-      # addRasterImage(kdraster(),
-      #                colors = pal_heat(),
-      #                opacity = .75,
-      #                group = "Depredation Density") %>%
-      addHeatmap(
-        data = noaa_vl_prop()%>%filter(PROP_DEAD>0),
-        lng = ~UNIQUE_RET_LON,
-        lat = ~UNIQUE_RET_LAT,
+        leaflet::addLegend(position = 'topright',
+                           pal = pro_pal,
+                           values = gridvalues()$classification,
+                           opacity = 1,
+                           title = HTML("Depredation<br>Intensity"),
+                           group = "Depredation Intensity",
+                           layerId = "Depredation Intensity") 
+    }  
+      
+    if (input$radio_depred == "Total" & input$radio_layer == "Density (heat)"){
+    proxy %>% 
+      addHeatmap(data = grid_centroids()%>%filter(PROP_DEAD.mean>0),
+        #lng = ~UNIQUE_RET_LON,
+        #lat = ~UNIQUE_RET_LAT,
         #gradient = "Spectral",
-        intensity = ~NUM_FISH,
+        #intensity = ~NUM_FISH,
         blur = 35,
         #max = 0.05,
         radius = 30,
-        group = "Catch Density"
-      ) %>%
-      addMarkers(lng=-86.3,
-                 lat=30.25, icon=boat_icon) %>%
-      addSimpleGraticule(interval = 1, 
-                         group = "Graticule") %>%
-      # addVelocity(content=content,
-      #             group = "Current",
-      #             options=velocityOptions(speedUnit="kt")) %>%
-      addControl(html=html_legend, position="topright") %>%
-      leaflet::addLegend(position = 'topright',
-                         pal = pro_pal,
-                         values = gridvalues()$classification,
-                         opacity = 1,
-                         title = HTML("Depredation<br>Intensity"),
-                         group = "Depredation Intensity",
-                         layerId = "Depredation Intensity") %>%
-      # addLegend(pal = pal_heat(),
-      #           values = heat_values(),
-      #           opacity = 1,
-      #           title = HTML("Density of<br>Depredation"),
-      #           group = "Depredation Density") %>%
-      addLayersControl(position="topleft", overlayGroups = c("Depredation Intensity", "Graticule"), 
-                       options=layersControlOptions(collapsed=FALSE)) %>%
-      #addControl(html = '<div id="combined-legend"></div>', position = "topright") %>%
-      hideGroup(c("Depredation Density", "Current Intensity", "Point Data"))
+        group = "Catch Density")
+    }  
+      
   })
   
-
-############### PRINT NUMBER OF OBSERVATIONS DISPLAYED IN THE MAP ##############
+  # addMarkers(
+  #   data=valid_data,
+  #   lng=~as.numeric(longitude),
+  #   lat=~as.numeric(latitude),
+  #   popup=~paste("Species:", species, "<br>",
+  #                "Current Intensity:", current, "<br>",
+  #                "Depredation Intensity:", depred, "<br>",
+  #                "Notes:", notes)
+  # ) %>%
+  
+############################# 
+# print number of observations in the map
   output$text_obs <- renderText({
-    sum(filtered_prop()$NUM_FISH)
+    sum(filtered_data()$num_points)
   })
 
+############################
   
+  output$user_data <- DT::renderDT({
+    req(data_store$data)
+    data_store$data %>% 
+      filter(
+      user_id %in% session$userData$user_id
+      ) %>%
+      rename("Current Intensity" = "current",
+             "Depredation Intensity" = "depred",
+             "Species Encountered" = "species",
+             "Longitude" = "longitude",
+             "Latitude" = "latitude",
+             "Notes" = "notes",
+             "Time Recorded" = "timestamp",
+             "User ID" = "user_id")
+  })
   
 } #end server
 
