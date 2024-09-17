@@ -38,7 +38,7 @@
                                                 strong("Total Observations"),
                                                 verbatimTextOutput("text_obs", placeholder=FALSE),
                                                 p(" "),
-                                                sliderTextInput("days", "Days since Reporting", choices=seq(from=1, to=14, by=1), selected=c(2), grid=TRUE),
+                                                sliderTextInput("days", "Days since Reporting", choices=seq(from=1, to=14, by=1), selected=c(3), grid=TRUE),
                                                 radioGroupButtons("radio_current", "Display Current Intensity", choices = c("Yes", "No"), selected="No"),
                                                 fluidRow(
                                                   column(width=6, radioGroupButtons("radio_depred", "Display Depredation", choices=c("Total", "Sharks", "Dolphins"), selected="Total")),
@@ -87,9 +87,9 @@
                                                column(width=8, textInput("text_notes", label="Notes"))
                                              ),
                                              actionButton("submit", "Submit Data", class="btn btn-info")
-                                           ), #wellPanel
+                                           )#, #wellPanel
                                            
-                                           DTOutput("sheet_data")
+                                           #DTOutput("sheet_data")
                                            
                                            ), #tabPanel 2
                                          tabPanel("User Data", icon=icon("user"),
