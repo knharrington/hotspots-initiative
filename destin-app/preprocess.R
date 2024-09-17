@@ -131,6 +131,8 @@ grid.sq1=grid.sq1[1]
 names(grid.sq1)[names(grid.sq1) == "Id"] <- "GRID_ID"
 gridshp=grid.sq1
 
+bbox <- st_bbox(gridshp)
+
 boat_icon <- makeIcon(iconUrl = "www/boat2.svg",
                       iconWidth=35, iconHeight=30, 
                       iconAnchorX=15, iconAnchorY=15)
@@ -138,15 +140,88 @@ html_legend <- "<img src='boat2.svg' style='width:35px;height:30px;'> Current Lo
 
 current_speed <- fread("data/Oceanic_current_speed.csv") %>%
   dplyr::select(Longitude, Latitude, Oceanic_current_speed_October) %>%
-  rename("Speed_Oct" = "Oceanic_current_speed_October") %>%
-  mutate(class_bin = case_when(
-    Speed_Oct >= 0.5 ~ 3,
-    Speed_Oct >= 0.3 ~ 2,
-    Speed_Oct < 0.3 ~ 1
-    )
-  )
+  rename("Speed_Oct" = "Oceanic_current_speed_October")
 
+# Convert the data frame to a spatial object
+current_speed_sf <- st_as_sf(current_speed, coords = c("Longitude", "Latitude"), crs = st_crs(gridshp))
+
+# Perform the spatial join
+grid_join_c <- setDT(st_join(current_speed_sf, gridshp, join = st_intersects))
+
+filtered_data_c <- grid_join_c %>%
+    group_by(GRID_ID) %>%
+    summarise(
+      speed_mean = mean(Speed_Oct, na.rm = TRUE)
+    ) %>%
+  mutate(class_bin = case_when(
+    speed_mean >= 0.5 ~ 3,
+    speed_mean >= 0.3 ~ 2,
+    speed_mean < 0.3 ~ 1
+  ))
+
+gridvalues_c <- st_as_sf(merge(x = gridshp, y = filtered_data_c, by = "GRID_ID", all.x = FALSE))
 #summary(current_speed)
 
+# pal = colorNumeric("Spectral", gridvalues_c$class_bin)
+# leaflet() %>% addTiles() %>% addPolygons(data=gridvalues_c, fillColor = ~pal(class_bin), color=~pal(class_bin))
+
 #save(gridshp, sheet_id, noaa_data, noaa_vl_des, file = "destin-app/data/preprocess.RData")
-save(gridshp, sheet_id, noaa_data, noaa_vl_des, boat_icon, html_legend, current_speed, file = "data/preprocess.RData")
+save(gridshp, sheet_id, noaa_data, noaa_vl_des, boat_icon, html_legend, file = "data/preprocess.RData")
+
+
+################################################################################
+### Non-reactive world
+
+# filter dataset based on user inputs
+filtered_prop <- noaa_vl_des %>% filter(Days_Report <= 14)
+
+noaa_vl_prop <- filtered_prop %>%
+    filter(!is.na(LAT_BEGIN_SET) & !is.na(LON_BEGIN_SET)) %>%
+    group_by(UNIQUE_RETRIEVAL, COMMON_NAME, VESSEL_ID) %>%
+    mutate(
+      NUM_ALIVE = sum(NUM_FISH[CONDITION %in% c('ALIVE', 'ALIVE BAURO - STOM/BLADDER', 'ALIVE BAURO - EYES', 'ALIVE BAURO - BOTH')]),
+      NUM_DEAD = sum(NUM_FISH[CONDITION == 'DEAD']),
+      UNIQUE_RET_LAT = round(mean(LAT_BEGIN_SET), 6),
+      UNIQUE_RET_LON = round(mean(LON_BEGIN_SET), 6),
+      PROP_DEAD = NUM_DEAD / NUM_ALIVE,
+      NUM_SHARKS = sum(NUM_FISH[grepl("SHARK", COMMON_NAME)])
+    )
+
+# Convert the data frame to a spatial object
+noaa_vl_prop_sf <- st_as_sf(noaa_vl_prop, coords = c("UNIQUE_RET_LON", "UNIQUE_RET_LAT"), crs = st_crs(gridshp))
+
+# Perform the spatial join
+grid_join <- setDT(st_join(noaa_vl_prop_sf, gridshp, join = st_intersects))
+
+# filter and aggregate the data if the cells contain at least 3 vessels contributing
+filtered_data <- grid_join %>%
+    group_by(GRID_ID) %>%
+    summarise(
+      PROP_DEAD.mean = mean(PROP_DEAD, na.rm = TRUE),  # Calculate the mean PROP_DEAD for each grid
+      NUM_SHARKS.mean = mean(NUM_SHARKS, na.rm=TRUE),
+      num_points = n(),  # Count the number of points in each grid
+      unique_vessel_ids = n_distinct(VESSEL_ID)  # Count unique VESSEL_IDs in each grid
+    ) %>%
+    filter(num_points >= 3 & unique_vessel_ids >= 3)  # Apply the filtering condition: at least 3 points and at least 3 unique VESSEL_IDs
+
+filtered_data2 <- filtered_data %>%
+    filter(GRID_ID != "NA",
+           PROP_DEAD.mean != 'Inf') %>%
+    mutate(
+      classification = case_when(
+        PROP_DEAD.mean == 0 ~ 'None',
+        PROP_DEAD.mean <= 0.10 ~ 'Moderate',
+        PROP_DEAD.mean > 0.10 ~ 'High'
+      ),
+      current_speed = "None",
+      sharks_dep = case_when(
+        NUM_SHARKS.mean == 0 ~ "None",
+        NUM_SHARKS.mean <= 2 ~ "Moderate",
+        NUM_SHARKS.mean > 3 ~ "High"
+      ),
+      dolphins_dep = "None"
+    )
+# Merge the results back with the grid shapefile
+gridvalues <- st_as_sf(merge(x = gridshp, y = filtered_data2, by = "GRID_ID", all.x = FALSE))
+
+grid_centroids <- st_centroid(gridvalues)
