@@ -43,24 +43,26 @@ function(input, output, session) {
     # Check if the user wants to use the current location
     
     lon <- if (input$check_loc == "Yes") {
-      -83#NA #input$user_long  
+      -88.9#NA #input$user_long
+      #showNotification("Unable to retrieve location. Please enter manually.", type = "error")
     } else {
       as.numeric(input$text_long)
     }
     
-    if (is.na(lon) || lon > -83 || lon < -89) {
+    if (is.na(lon) || lon > -83.02881 || lon < -88.97083) {
       showNotification("Please enter a valid longitude between -89W and -83W.", type = "error")
       return(NULL)  # Stop further execution if longitude is invalid
     }
     
     lat <- if (input$check_loc == "Yes") {
       29#NA #input$user_lat
+      #showNotification("Unable to retrieve location. Please enter manually.", type = "error")
     } else {
       as.numeric(input$text_lat)
     }
     
-    if (is.na(lat) || lat < 29 || lat > 32) {
-      showNotification("Please enter a valid latitude between 29N and 32N.", type = "error")
+    if (is.na(lat) || lat < 28.90000 || lat > 30.40725) {
+      showNotification("Please enter a valid latitude between 28.9N and 30.4N.", type = "error")
       return(NULL)  # Stop further execution if latitude is invalid
     }
     
@@ -122,16 +124,14 @@ function(input, output, session) {
   # })
   
   #observe({
-  output$sheet_data <- DT::renderDT({
-    #read_sheet(ss = sheet_id, sheet = "main")
-    req(data_store$data)
-    data_store$data
-  })
+  # output$sheet_data <- DT::renderDT({
+  #   #read_sheet(ss = sheet_id, sheet = "main")
+  #   req(data_store$data)
+  #   data_store$data
+  # })
   #})
 
 ################################################################################
-# deal with currents dataset
- 
   
 # filter dataset based on user inputs  
 filtered_prop <- reactive({
@@ -154,7 +154,8 @@ noaa_vl_prop <- reactive({
     NUM_DEAD = sum(NUM_FISH[CONDITION == 'DEAD']),
     UNIQUE_RET_LAT = round(mean(LAT_BEGIN_SET), 6),
     UNIQUE_RET_LON = round(mean(LON_BEGIN_SET), 6),
-    PROP_DEAD = NUM_DEAD / NUM_ALIVE
+    PROP_DEAD = NUM_DEAD / NUM_ALIVE,
+    NUM_SHARKS = sum(NUM_FISH[grepl("SHARK", COMMON_NAME)])
     )
 })
 
@@ -171,6 +172,7 @@ filtered_data <- reactive({
     group_by(GRID_ID) %>%
     summarise(
       PROP_DEAD.mean = mean(PROP_DEAD, na.rm = TRUE),  # Calculate the mean PROP_DEAD for each grid
+      NUM_SHARKS.mean = mean(NUM_SHARKS, na.rm=TRUE),
       num_points = n(),  # Count the number of points in each grid
       unique_vessel_ids = n_distinct(VESSEL_ID)  # Count unique VESSEL_IDs in each grid
     ) %>%
@@ -181,11 +183,19 @@ filtered_data2 <- reactive({
   filtered_data() %>%
   filter(GRID_ID != "NA",
     PROP_DEAD.mean != 'Inf') %>%
-  mutate(classification = case_when(
-    PROP_DEAD.mean == 0 ~ 'None',
-    PROP_DEAD.mean <= 0.10 ~ 'Moderate',
-    PROP_DEAD.mean > 0.10 ~ 'High'
-    )
+  mutate(
+    classification = case_when(
+      PROP_DEAD.mean == 0 ~ 'None',
+      PROP_DEAD.mean <= 0.10 ~ 'Moderate',
+      PROP_DEAD.mean > 0.10 ~ 'High'
+    ),
+    current_speed = "None",
+    sharks_dep = case_when(
+      NUM_SHARKS.mean == 0 ~ "None",
+      NUM_SHARKS.mean <= 2 ~ "Moderate",
+      NUM_SHARKS.mean > 2 ~ "High"
+    ),
+    dolphins_dep = "None"
   )
 })
 
@@ -193,14 +203,63 @@ filtered_data2 <- reactive({
 gridvalues <- reactive({st_as_sf(merge(x = gridshp, y = filtered_data2(), by = "GRID_ID", all.x = FALSE))})
 
 grid_centroids <- reactive({
-  st_centroid(gridvalues())
+  st_centroid(gridvalues()) %>% filter(PROP_DEAD.mean>0) %>% select(GRID_ID)
 })
 
-vl_prop_mh <- reactive({
-  noaa_vl_prop() %>%
-    filter(NUM_DEAD > 0)
+grid_centroids_sd <- reactive({
+  st_centroid(gridvalues()) %>% filter(PROP_DEAD.mean>0)
 })
 
+######################################### user data
+
+user_data <- reactive({data_store$data %>% #data_store$data %>% sheet_data %>% 
+  filter(!is.na(longitude) & !is.na(latitude)) %>%
+  mutate(
+    current_bin = case_when(
+      current == "None" ~ 1,
+      current == "Moderate" ~ 2,
+      current == "High" ~3
+    ),
+    depred_bin = case_when(
+      depred == "None" ~ 1,
+      depred == "Moderate" ~ 2,
+      depred == "High" ~3
+    )
+  )
+})
+
+user_data_sf <- reactive({st_as_sf(user_data(), coords = c("longitude", "latitude"), crs = st_crs(gridshp))})
+grid_join_u <- reactive({setDT(st_join(user_data_sf(), gridshp, join = st_intersects))})
+
+filtered_data_u <- reactive({grid_join_u() %>%
+    filter(!is.na(GRID_ID)) %>%
+    group_by(GRID_ID) %>%
+    summarise(
+      current.mean = mean(current_bin, na.rm = TRUE), 
+      depred.mean = mean(depred_bin, na.rm=TRUE),
+      num_points = n(),
+      current_class = case_when(
+        current.mean == 1 ~ "None",
+        current.mean <= 2 ~ "Moderate",
+        current.mean > 2 ~ "High"
+      ),
+      depred_class = case_when(
+        depred.mean == 1 ~ "None",
+        depred.mean <= 2 ~ "Moderate",
+        depred.mean > 2 ~ "High"
+      ),
+      all_notes = paste(notes[!is.na(notes)], collapse = ";<br> ")
+    )
+})
+
+gridvalues_u <- reactive({st_as_sf(merge(x = gridshp, y = filtered_data_u(), by = "GRID_ID", all.x = FALSE))})
+
+grid_centroids_u <- reactive({
+  st_centroid(gridvalues_u()) %>% filter(depred_class != "None") %>% select(GRID_ID)
+  })
+
+all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
+#########################################
 
 # map with proxy
   output$examplemap <- renderLeaflet({
@@ -215,13 +274,15 @@ vl_prop_mh <- reactive({
   observeEvent(input$update, {
     
     #print(nrow(gridvalues()))
-    #print(filtered_data())
+    #print(filtered_data2())
     #print(grid_centroids())
     
     colors <- c("#18bc9c", "#f39c12", "#e74c3c")
     pro_levels <- c("None", "Moderate", "High")
-    pro_pal <- colorFactor(colors, levels=pro_levels, domain=gridvalues()$classification)
-    popper <- paste0("<strong>Proportion Dead: </strong>", round(gridvalues()$PROP_DEAD.mean, digits = 2))
+    pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "High"))
+    #popper <- paste0("<strong>Proportion Dead: </strong>", round(gridvalues()$PROP_DEAD.mean, digits = 2))
+    popper <- paste0("<strong>Notes: </strong>observer data")
+    poppy <- paste0("<strong>Notes: </strong>", gridvalues_u()$all_notes)
     
     valid_data <- data_store$data %>%
       dplyr::filter(!is.na(latitude) & !is.na(longitude))
@@ -252,9 +313,17 @@ vl_prop_mh <- reactive({
                   highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
                   popup = ~popper,
                   group = "Depredation Intensity") %>%
+        addPolygons(data = gridvalues_u(),
+                    fillColor = ~pro_pal(depred_class),
+                    weight = 0.5,
+                    color = "black",
+                    fillOpacity = 1,
+                    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
+                    popup = ~poppy,
+                    group = "Depredation Intensity") %>%
         leaflet::addLegend(position = 'topright',
                            pal = pro_pal,
-                           values = gridvalues()$classification,
+                           values = c("None", "Moderate", "High"),
                            opacity = 1,
                            title = HTML("Depredation<br>Intensity"),
                            group = "Depredation Intensity",
@@ -263,7 +332,7 @@ vl_prop_mh <- reactive({
       
     if (input$radio_depred == "Total" & input$radio_layer == "Density (heat)"){
     proxy %>% 
-      addHeatmap(data = grid_centroids()%>%filter(PROP_DEAD.mean>0),
+      addHeatmap(data = all_centroids(),
         #lng = ~UNIQUE_RET_LON,
         #lat = ~UNIQUE_RET_LAT,
         #gradient = "Spectral",
@@ -273,6 +342,91 @@ vl_prop_mh <- reactive({
         radius = 30,
         group = "Catch Density")
     }  
+    
+    if (input$radio_depred == "Sharks" & input$radio_layer == "Intensity (grid)"){
+      proxy %>%
+        addPolygons(data = gridvalues(),
+                    fillColor = ~pro_pal(sharks_dep),
+                    weight = 0.5,
+                    color = "black",
+                    fillOpacity = 1,
+                    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
+                    popup = ~popper,
+                    group = "Shark Intensity") %>%
+        leaflet::addLegend(position = 'topright',
+                           pal = pro_pal,
+                           values = c("None", "Moderate", "High"),
+                           opacity = 1,
+                           title = HTML("Shark Intensity"),
+                           group = "Shark Intensity",
+                           layerId = "Shark Intensity") 
+    }
+    
+    if (input$radio_depred == "Sharks" & input$radio_layer == "Density (heat)"){
+      proxy %>% 
+        addHeatmap(data = grid_centroids_sd() %>% filter(sharks_dep != "None"),
+                   #lng = ~UNIQUE_RET_LON,
+                   #lat = ~UNIQUE_RET_LAT,
+                   #gradient = "Spectral",
+                   #intensity = ~NUM_FISH,
+                   blur = 35,
+                   #max = 0.05,
+                   radius = 30,
+                   group = "Shark Density")
+    } 
+    
+    if (input$radio_depred == "Dolphins" & input$radio_layer == "Intensity (grid)"){
+      proxy %>%
+        addPolygons(data = gridvalues(),
+                    fillColor = ~pro_pal(dolphins_dep),
+                    weight = 0.5,
+                    color = "black",
+                    fillOpacity = 1,
+                    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
+                    popup = ~popper,
+                    group = "Dolphin Intensity") %>%
+        leaflet::addLegend(position = 'topright',
+                           pal = pro_pal,
+                           values = c("None", "Moderate", "High"),
+                           opacity = 1,
+                           title = HTML("Dolphin Intensity"),
+                           group = "Dolphin Intensity",
+                           layerId = "Dolphin Intensity") 
+    }
+    
+    if (input$radio_depred == "Dolphins" & input$radio_layer == "Density (heat)"){
+      proxy %>% 
+        addHeatmap(data = grid_centroids_sd()%>%filter(dolphins_dep != "None"),
+                   #lng = ~UNIQUE_RET_LON,
+                   #lat = ~UNIQUE_RET_LAT,
+                   #gradient = "Spectral",
+                   #intensity = ~NUM_FISH,
+                   blur = 35,
+                   #max = 0.05,
+                   radius = 30,
+                   group = "Dolphin Density")
+    }
+    
+    if (input$radio_current == "Yes"){
+      proxy %>%
+        clearControls() %>%
+        addPolygons(
+          data=gridvalues(),
+          fillColor = ~pro_pal(current_speed),
+          weight = 0.5,
+          color = "black",
+          fillOpacity = 1,
+          highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
+          popup = ~popper,
+          group = "Current Intensity") %>%
+        leaflet::addLegend(position = 'topright',
+                           pal = pro_pal,
+                           values = c("None", "Moderate", "High"),
+                           opacity = 1,
+                           title = HTML("Current Intensity"),
+                           group = "Current Intensity",
+                           layerId = "Current Intensity")
+    }
       
   })
   
