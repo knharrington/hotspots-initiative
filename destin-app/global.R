@@ -29,6 +29,7 @@
   library(htmlwidgets)
   library(shinyWidgets)
   library(shinythemes)
+  library(shinydashboard)
   library(shinycustomloader)
   library(leaflet.extras)
   library(leaflet.extras2)
