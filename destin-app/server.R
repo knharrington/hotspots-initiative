@@ -184,18 +184,18 @@ filtered_data2 <- reactive({
   filter(GRID_ID != "NA",
     PROP_DEAD.mean != 'Inf') %>%
   mutate(
-    classification = case_when(
+    depred_class = case_when(
       PROP_DEAD.mean == 0 ~ 'None',
       PROP_DEAD.mean <= 0.10 ~ 'Moderate',
       PROP_DEAD.mean > 0.10 ~ 'High'
     ),
-    current_speed = "None",
-    sharks_dep = case_when(
+    current_class = "None",
+    sharks_class = case_when(
       NUM_SHARKS.mean == 0 ~ "None",
       NUM_SHARKS.mean <= 2 ~ "Moderate",
       NUM_SHARKS.mean > 2 ~ "High"
     ),
-    dolphins_dep = "None"
+    dolphins_class = "None"
   )
 })
 
@@ -203,7 +203,7 @@ filtered_data2 <- reactive({
 gridvalues <- reactive({st_as_sf(merge(x = gridshp, y = filtered_data2(), by = "GRID_ID", all.x = FALSE))})
 
 grid_centroids <- reactive({
-  st_centroid(gridvalues()) %>% filter(PROP_DEAD.mean>0) %>% select(GRID_ID)
+  st_centroid(gridvalues()) %>% filter(depred_class != "None") %>% select(GRID_ID, depred_class, current_class, sharks_class, dolphins_class)
 })
 
 grid_centroids_sd <- reactive({
@@ -248,6 +248,8 @@ filtered_data_u <- reactive({grid_join_u() %>%
         depred.mean <= 2 ~ "Moderate",
         depred.mean > 2 ~ "High"
       ),
+      sharks_class = "None",
+      dolphins_class = "None",
       all_notes = paste(notes[!is.na(notes)], collapse = ";<br> ")
     )
 })
@@ -255,7 +257,7 @@ filtered_data_u <- reactive({grid_join_u() %>%
 gridvalues_u <- reactive({st_as_sf(merge(x = gridshp, y = filtered_data_u(), by = "GRID_ID", all.x = FALSE))})
 
 grid_centroids_u <- reactive({
-  st_centroid(gridvalues_u()) %>% filter(depred_class != "None") %>% select(GRID_ID)
+  st_centroid(gridvalues_u()) %>% filter(depred_class != "None") %>% select(GRID_ID, depred_class, current_class, sharks_class, dolphins_class)
   })
 
 all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
@@ -306,7 +308,7 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
     if (input$radio_depred == "Total" & input$radio_layer == "Intensity (grid)"){
     proxy %>%
       addPolygons(data = gridvalues(),
-                  fillColor = ~pro_pal(classification),
+                  fillColor = ~pro_pal(depred_class),
                   weight = 0.5,
                   color = "black",
                   fillOpacity = 1,
@@ -346,12 +348,20 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
     if (input$radio_depred == "Sharks" & input$radio_layer == "Intensity (grid)"){
       proxy %>%
         addPolygons(data = gridvalues(),
-                    fillColor = ~pro_pal(sharks_dep),
+                    fillColor = ~pro_pal(sharks_class),
                     weight = 0.5,
                     color = "black",
                     fillOpacity = 1,
                     highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
                     popup = ~popper,
+                    group = "Shark Intensity") %>%
+        addPolygons(data = gridvalues_u(),
+                    fillColor = ~pro_pal(sharks_class),
+                    weight = 0.5,
+                    color = "black",
+                    fillOpacity = 1,
+                    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
+                    popup = ~poppy,
                     group = "Shark Intensity") %>%
         leaflet::addLegend(position = 'topright',
                            pal = pro_pal,
@@ -378,12 +388,20 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
     if (input$radio_depred == "Dolphins" & input$radio_layer == "Intensity (grid)"){
       proxy %>%
         addPolygons(data = gridvalues(),
-                    fillColor = ~pro_pal(dolphins_dep),
+                    fillColor = ~pro_pal(dolphins_class),
                     weight = 0.5,
                     color = "black",
                     fillOpacity = 1,
                     highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
                     popup = ~popper,
+                    group = "Dolphin Intensity") %>%
+        addPolygons(data = gridvalues_u(),
+                    fillColor = ~pro_pal(dolphins_class),
+                    weight = 0.5,
+                    color = "black",
+                    fillOpacity = 1,
+                    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
+                    popup = ~poppy,
                     group = "Dolphin Intensity") %>%
         leaflet::addLegend(position = 'topright',
                            pal = pro_pal,
@@ -412,13 +430,21 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
         clearControls() %>%
         addPolygons(
           data=gridvalues(),
-          fillColor = ~pro_pal(current_speed),
+          fillColor = ~pro_pal(current_class),
           weight = 0.5,
           color = "black",
           fillOpacity = 1,
           highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
           popup = ~popper,
           group = "Current Intensity") %>%
+        addPolygons(data = gridvalues_u(),
+                    fillColor = ~pro_pal(current_class),
+                    weight = 0.5,
+                    color = "black",
+                    fillOpacity = 1,
+                    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
+                    popup = ~poppy,
+                    group = "Current Intensity") %>%
         leaflet::addLegend(position = 'topright',
                            pal = pro_pal,
                            values = c("None", "Moderate", "High"),
@@ -442,8 +468,13 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
   
 ############################# 
 # print number of observations in the map
-  output$text_obs <- renderText({
-    sum(filtered_data()$num_points)
+  output$text_obs <- renderInfoBox({
+    infoBox(
+      "Total Observations",
+      paste0(format(sum(filtered_data()$num_points), big.mark=",")),
+      icon=icon("binoculars"),
+      color="light-blue"
+    )
   })
 
 ############################
