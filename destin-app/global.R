@@ -7,7 +7,7 @@
 # load packages
 {
   library(tidyverse)
-  library(plyr)
+  #library(plyr)
   library(data.table)
   library(lubridate)
   
@@ -28,13 +28,13 @@
   library(plotly)
   library(htmlwidgets)
   library(shinyWidgets)
-  library(shinythemes)
-  library(shinydashboard)
+  #library(shinythemes)
   library(shinycustomloader)
   library(leaflet.extras)
   library(leaflet.extras2)
   library(leafem)
   library(DT)
+  library(shinydashboard)
   
   #library(KernSmooth)
   #library(ks)
