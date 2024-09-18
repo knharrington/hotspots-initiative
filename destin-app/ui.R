@@ -41,10 +41,12 @@ dashboardPage(skin="black",
       conditionalPanel(
         'input.sidebarid == "maptab"',
         #helpText(HTML("Use the following selections to update the data displayed <br>on the map.")),
-        sliderTextInput("days", "Days since Reporting", choices=seq(from=1, to=14, by=1), selected=c(3), grid=TRUE),
+        sliderTextInput("days", "Days Since Reporting", choices=seq(from=1, to=14, by=1), selected=c(3), grid=TRUE),
         radioGroupButtons("radio_current", "Display Current Intensity", choices = c("Yes", "No"), selected="No"),
-        radioGroupButtons("radio_depred", "Display Depredation", choices=c("Total", "Sharks", "Dolphins"), selected="Total"),
-        radioGroupButtons("radio_layer", "Layer Style", choices=c("Intensity (grid)", "Density (heat)"), selected="Intensity (grid)"),
+        conditionalPanel("input.radio_current == 'No'",
+          radioGroupButtons("radio_depred", "Display Depredation", choices=c("Total", "Sharks", "Dolphins"), selected="Total"),
+          radioGroupButtons("radio_layer", "Layer Style", choices=c("Intensity (grid)", "Density (heat)"), selected="Intensity (grid)"),
+        ),
         #fluidRow(
           #column(width=6, radioGroupButtons("radio_depred", "Display Depredation", choices=c("Total", "Sharks", "Dolphins"), selected="Total")),
           #column(width=6, radioGroupButtons("radio_layer", "Layer Style", choices=c("Intensity (grid)", "Density (heat)"), selected="Intensity (grid)"))
@@ -63,8 +65,11 @@ dashboardPage(skin="black",
         ), # fluid row
         fluidRow(
           box(
-            width=12, title = "Map", status="primary", solidHeader=TRUE, collapsible=TRUE,
-            withLoader(leafletOutput("examplemap", height = 440), type="html", loader="loader4")
+            width=12, height=800, title = "Map", status="primary", solidHeader=TRUE, collapsible=FALSE,
+            withLoader(leafletOutput("examplemap", height = 740), type="html", loader="loader4")#,
+            # DTOutput("trouble_table"),
+            # DTOutput("trouble_table2"),
+            # DTOutput("trouble_table3")
           ) # box -map
         ) # fluid row
       ), #tab item
@@ -108,7 +113,11 @@ dashboardPage(skin="black",
         box(
           width=12, title="User Data", status="primary", solidHeader=TRUE, collapsible=TRUE,
           div(DTOutput("user_data"), style="overflow-y: auto; height=300px")
-        ) # box -table
+        ), # box -table
+        box(
+          width=12, height=600, title = "Map", status="primary", solidHeader=TRUE, collapsible=FALSE,
+          withLoader(leafletOutput("user_map", height = 540), type="html", loader="loader4")
+        ) # box - user mpa
       ) #tab item
     ) # tab items
   ) # dashboard body
