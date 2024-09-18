@@ -170,7 +170,7 @@ grid_join <- reactive({setDT(st_join(noaa_vl_prop_sf(), gridshp, join = st_inter
 filtered_data <- reactive({
   grid_join() %>%
     group_by(GRID_ID) %>%
-    summarise(
+    reframe(
       PROP_DEAD.mean = mean(PROP_DEAD, na.rm = TRUE),  # Calculate the mean PROP_DEAD for each grid
       NUM_SHARKS.mean = mean(NUM_SHARKS, na.rm=TRUE),
       num_points = n(),  # Count the number of points in each grid
@@ -203,12 +203,12 @@ filtered_data2 <- reactive({
 gridvalues <- reactive({st_as_sf(merge(x = gridshp, y = filtered_data2(), by = "GRID_ID", all.x = FALSE))})
 
 grid_centroids <- reactive({
-  st_centroid(gridvalues()) %>% filter(depred_class != "None") %>% select(GRID_ID, depred_class, current_class, sharks_class, dolphins_class)
+  st_centroid(gridvalues()) %>% select(GRID_ID, depred_class, current_class, sharks_class, dolphins_class, num_points)
 })
 
-grid_centroids_sd <- reactive({
-  st_centroid(gridvalues()) %>% filter(PROP_DEAD.mean>0)
-})
+# grid_centroids_sd <- reactive({
+#   st_centroid(gridvalues()) %>% filter(depred_class != "None")
+# })
 
 ######################################### user data
 
@@ -231,10 +231,14 @@ user_data <- reactive({data_store$data %>% #data_store$data %>% sheet_data %>%
 user_data_sf <- reactive({st_as_sf(user_data(), coords = c("longitude", "latitude"), crs = st_crs(gridshp))})
 grid_join_u <- reactive({setDT(st_join(user_data_sf(), gridshp, join = st_intersects))})
 
-filtered_data_u <- reactive({grid_join_u() %>%
-    filter(!is.na(GRID_ID)) %>%
+filtered_data_u <- reactive({
+  threshold_time <- Sys.time() - as.difftime(input$days, units = "days")
+  
+  grid_join_u() %>%
+    filter(!is.na(GRID_ID),
+           timestamp >= threshold_time) %>%
     group_by(GRID_ID) %>%
-    summarise(
+    reframe(
       current.mean = mean(current_bin, na.rm = TRUE), 
       depred.mean = mean(depred_bin, na.rm=TRUE),
       num_points = n(),
@@ -248,16 +252,29 @@ filtered_data_u <- reactive({grid_join_u() %>%
         depred.mean <= 2 ~ "Moderate",
         depred.mean > 2 ~ "High"
       ),
-      sharks_class = "None",
-      dolphins_class = "None",
-      all_notes = paste(notes[!is.na(notes)], collapse = ";<br> ")
+      sharks_class = case_when(
+        species == "None" ~ "None",
+        species == "Dolphin" ~ "None",
+        species == "Shark" & depred.mean == 1 ~ "None",
+        species == "Shark" & depred.mean <= 2 ~ "Moderate",
+        species == "Shark" & depred.mean > 2 ~ "High"
+      ),
+      dolphins_class = case_when(
+        species == "None" ~ "None",
+        species == "Shark" ~ "None",
+        species == "Dolphin" & depred.mean == 1 ~ "None",
+        species == "Dolphin" & depred.mean <= 2 ~ "Moderate",
+        species == "Dolphin" & depred.mean > 2 ~ "High"
+      ),
+      all_notes = paste(notes[!is.na(notes)], collapse = ";<br> "),
+      num_points = n()
     )
 })
 
 gridvalues_u <- reactive({st_as_sf(merge(x = gridshp, y = filtered_data_u(), by = "GRID_ID", all.x = FALSE))})
 
 grid_centroids_u <- reactive({
-  st_centroid(gridvalues_u()) %>% filter(depred_class != "None") %>% select(GRID_ID, depred_class, current_class, sharks_class, dolphins_class)
+  st_centroid(gridvalues_u()) %>% select(GRID_ID, depred_class, current_class, sharks_class, dolphins_class, num_points)
   })
 
 all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
@@ -278,16 +295,16 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
     #print(nrow(gridvalues()))
     #print(filtered_data2())
     #print(grid_centroids())
+    #print(all_centroids())
     
-    colors <- c("#18bc9c", "#f39c12", "#e74c3c")
+    colors <- c("#00a65a", "#f39c12", "#dd4b39")
     pro_levels <- c("None", "Moderate", "High")
     pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "High"))
-    #popper <- paste0("<strong>Proportion Dead: </strong>", round(gridvalues()$PROP_DEAD.mean, digits = 2))
     popper <- paste0("<strong>Notes: </strong>observer data")
     poppy <- paste0("<strong>Notes: </strong>", gridvalues_u()$all_notes)
     
-    valid_data <- data_store$data %>%
-      dplyr::filter(!is.na(latitude) & !is.na(longitude))
+    # valid_data <- data_store$data %>%
+    #   dplyr::filter(!is.na(latitude) & !is.na(longitude))
     
     proxy <- leafletProxy("examplemap")
       
@@ -296,7 +313,7 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
       clearShapes() %>%
       clearImages() %>%
       clearControls() %>%
-      leafem::addMouseCoordinates()%>%
+      leafem::addMouseCoordinates() %>%
       addMarkers(lng=-86.3,
                  lat=30.25, icon=boat_icon) %>%
       addSimpleGraticule(interval = 1, 
@@ -334,11 +351,9 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
       
     if (input$radio_depred == "Total" & input$radio_layer == "Density (heat)"){
     proxy %>% 
-      addHeatmap(data = all_centroids(),
-        #lng = ~UNIQUE_RET_LON,
-        #lat = ~UNIQUE_RET_LAT,
+      addHeatmap(data = all_centroids() %>% filter(depred_class != "None"),
         #gradient = "Spectral",
-        #intensity = ~NUM_FISH,
+        intensity = ~num_points,
         blur = 35,
         #max = 0.05,
         radius = 30,
@@ -374,11 +389,9 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
     
     if (input$radio_depred == "Sharks" & input$radio_layer == "Density (heat)"){
       proxy %>% 
-        addHeatmap(data = grid_centroids_sd() %>% filter(sharks_dep != "None"),
-                   #lng = ~UNIQUE_RET_LON,
-                   #lat = ~UNIQUE_RET_LAT,
+        addHeatmap(data = all_centroids() %>% filter(sharks_class != "None"),
                    #gradient = "Spectral",
-                   #intensity = ~NUM_FISH,
+                   intensity = ~num_points,
                    blur = 35,
                    #max = 0.05,
                    radius = 30,
@@ -414,11 +427,9 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
     
     if (input$radio_depred == "Dolphins" & input$radio_layer == "Density (heat)"){
       proxy %>% 
-        addHeatmap(data = grid_centroids_sd()%>%filter(dolphins_dep != "None"),
-                   #lng = ~UNIQUE_RET_LON,
-                   #lat = ~UNIQUE_RET_LAT,
+        addHeatmap(data = all_centroids() %>% filter(dolphins_class != "None"),
                    #gradient = "Spectral",
-                   #intensity = ~NUM_FISH,
+                   intensity = ~num_points,
                    blur = 35,
                    #max = 0.05,
                    radius = 30,
@@ -427,7 +438,10 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
     
     if (input$radio_current == "Yes"){
       proxy %>%
+        clearHeatmap() %>%
         clearControls() %>%
+        #clearShapes() %>%
+        addControl(html=html_legend, position="topright") %>%
         addPolygons(
           data=gridvalues(),
           fillColor = ~pro_pal(current_class),
@@ -455,29 +469,39 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
     }
       
   })
-  
-  # addMarkers(
-  #   data=valid_data,
-  #   lng=~as.numeric(longitude),
-  #   lat=~as.numeric(latitude),
-  #   popup=~paste("Species:", species, "<br>",
-  #                "Current Intensity:", current, "<br>",
-  #                "Depredation Intensity:", depred, "<br>",
-  #                "Notes:", notes)
-  # ) %>%
-  
+
+# trouble shooting tables
+  # observe({
+  #   output$trouble_table <- DT::renderDT({
+  #     all_centroids()
+  #   })
+  # })
+  # 
+  # observe({
+  #   output$trouble_table2 <- DT::renderDT({
+  #     grid_centroids()
+  #   })
+  # })
+  # 
+  # observe({
+  #   output$trouble_table3 <- DT::renderDT({
+  #     gridvalues()
+  #   })
+  # })
+
 ############################# 
 # print number of observations in the map
   output$text_obs <- renderInfoBox({
     infoBox(
       "Total Observations",
-      paste0(format(sum(filtered_data()$num_points), big.mark=",")),
+      paste0(format(sum(nrow(filtered_data()), nrow(filtered_data_u())), big.mark=",")),
       icon=icon("binoculars"),
       color="light-blue"
     )
   })
 
 ############################
+# user data tab outputs
   
   output$user_data <- DT::renderDT({
     req(data_store$data)
@@ -491,10 +515,49 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
              "Longitude" = "longitude",
              "Latitude" = "latitude",
              "Notes" = "notes",
-             "Time Recorded" = "timestamp",
+             "Time Recorded (UTC)" = "timestamp",
              "User ID" = "user_id")
   })
   
+  userid_data <- reactive({
+    req(data_store$data)
+    data_store$data %>% 
+      filter(!is.na(latitude) & !is.na(longitude) & user_id %in% session$userData$user_id)
+  })
+  
+  output$user_map <- renderLeaflet({
+    leaflet() %>%
+      addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 5, maxZoom = 12)) %>%
+      setView(lng=-86.75, lat=29.75, zoom=9)  %>%
+      addScaleBar(position = 'topleft',
+                  options = scaleBarOptions(maxWidth = 100, metric = TRUE, imperial = TRUE, updateWhenIdle = FALSE)) %>%
+      leafem::addMouseCoordinates() %>%
+      addSimpleGraticule(interval = 1, 
+                         group = "Graticule") %>%
+      addControl(html=html_legend, position="topright") %>%
+      addLayersControl(position="topleft", overlayGroups = c("Graticule"), 
+                       options=layersControlOptions(collapsed=FALSE)) %>%
+      addMarkers(lng=-86.3,
+                 lat=30.25, icon=boat_icon)
+  })
+  
+  observe({
+    poppy <- paste0("<strong>Notes: </strong>", userid_data()$notes)
+    
+    proxy <- leafletProxy("user_map")
+    
+    proxy %>% 
+      clearMarkers() %>%
+      addMarkers(lng=-86.3,
+                 lat=30.25, icon=boat_icon) %>%
+      addMarkers(
+          data=userid_data(),
+          lng=~as.numeric(longitude),
+          lat=~as.numeric(latitude),
+          popup=~poppy
+        )
+  }) # end observe event
+    
 } #end server
 
 
