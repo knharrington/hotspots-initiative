@@ -170,7 +170,7 @@ grid_join <- reactive({setDT(st_join(noaa_vl_prop_sf(), gridshp, join = st_inter
 filtered_data <- reactive({
   grid_join() %>%
     group_by(GRID_ID) %>%
-    reframe(
+    dplyr::summarise(
       PROP_DEAD.mean = mean(PROP_DEAD, na.rm = TRUE),  # Calculate the mean PROP_DEAD for each grid
       NUM_SHARKS.mean = mean(NUM_SHARKS, na.rm=TRUE),
       num_points = n(),  # Count the number of points in each grid
@@ -238,7 +238,7 @@ filtered_data_u <- reactive({
     filter(!is.na(GRID_ID),
            timestamp >= threshold_time) %>%
     group_by(GRID_ID) %>%
-    reframe(
+    dplyr::summarise(
       current.mean = mean(current_bin, na.rm = TRUE), 
       depred.mean = mean(depred_bin, na.rm=TRUE),
       num_points = n(),
@@ -278,6 +278,7 @@ grid_centroids_u <- reactive({
   })
 
 all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
+
 #########################################
 
 # map with proxy
@@ -525,6 +526,39 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
       filter(!is.na(latitude) & !is.na(longitude) & user_id %in% session$userData$user_id)
   })
   
+  calculateOpacity <- function(day_value) {
+    # Ensure there are timestamps to work with
+    if (length(day_value) == 0) return(rep(1, length(day_value)))  # Default to opacity of 1 if no data
+    
+    # Normalize the timestamps to get a range between 0 and 1
+    current_time <- Sys.time()
+    days_since <- as.numeric(difftime(current_time, day_value, units = "days"))
+    
+    # Normalize the opacity (0 is more recent, 1 is the furthest back)
+    max_days <- max(days_since, na.rm = TRUE)
+    min_days <- min(days_since, na.rm = TRUE)
+    
+    # Avoid division by zero
+    if (max_days == min_days) {
+      return(rep(1, length(day_value)))  # Default opacity if all timestamps are the same
+    }
+    
+    normalized_day <- (days_since - min_days) / (max_days - min_days)
+    opacity <- 1 - normalized_day  # More recent data will be more opaque
+    
+    return(opacity)
+  }
+  
+  # Calculate colors for species
+  colors_sp <- colorFactor(c("#00a65a","#3c8dbc", "#00c0ef"), levels = c("None", "Shark", "Dolphin"))
+  
+  # Calculate opacity for days since recording
+  opacity <- reactive({
+    req(userid_data())
+    timestamps <- userid_data()$timestamp
+    calculateOpacity(timestamps)
+  })
+  
   output$user_map <- renderLeaflet({
     leaflet() %>%
       addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 5, maxZoom = 12)) %>%
@@ -542,6 +576,8 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
   })
   
   observe({
+    req(userid_data())
+    
     poppy <- paste0("<strong>Notes: </strong>", userid_data()$notes)
     
     proxy <- leafletProxy("user_map")
@@ -550,11 +586,16 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
       clearMarkers() %>%
       addMarkers(lng=-86.3,
                  lat=30.25, icon=boat_icon) %>%
-      addMarkers(
+      addCircleMarkers(
           data=userid_data(),
           lng=~as.numeric(longitude),
           lat=~as.numeric(latitude),
-          popup=~poppy
+          weight=3,
+          radius=10,
+          fillOpacity = opacity(),
+          color = ~colors_sp(species),
+          popup=~poppy,
+          group="Points"
         )
   }) # end observe event
     
