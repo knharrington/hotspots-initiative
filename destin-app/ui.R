@@ -40,6 +40,7 @@ dashboardPage(skin="black",
       menuItem("User Data", tabName="usertab", icon=icon("user")),
       conditionalPanel(
         'input.sidebarid == "maptab"',
+        #hr(),
         #helpText(HTML("Use the following selections to update the data displayed <br>on the map.")),
         sliderTextInput("days", "Days Since Reporting", choices=seq(from=1, to=14, by=1), selected=c(3), grid=TRUE),
         radioGroupButtons("radio_current", "Display Current Intensity", choices = c("Yes", "No"), selected="No"),
@@ -59,13 +60,18 @@ dashboardPage(skin="black",
     tabItems(
       tabItem(tabName="maptab",
         fluidRow(
-          infoBoxOutput("text_obs")#,
-          #infoBoxOutput(),
+          box(
+            width=8, status="primary", #title="About the Data",  
+            HTML("ABOUT THE DATA<br>Displayed is a combination of data collected via the NOAA Observer Program and manually recorded observations.
+              The total number of observations refers to the number of points informing the map. Grid cells are 1 mi by 1 mi and reflect the average
+              value of points located inside each cell. Current intensity was calculated using averages of the current speed (m/s) from 2000-2017
+              during the month of October.")),
+          infoBoxOutput("text_obs", width=4),
           #infoBoxOutput()
         ), # fluid row
         fluidRow(
           box(
-            width=12, height=800, title = "Map", status="primary", solidHeader=TRUE, collapsible=FALSE,
+            width=12, title = "Map", status="primary", solidHeader=TRUE, collapsible=FALSE, #height=800,
             withLoader(leafletOutput("examplemap", height = 740), type="html", loader="loader4")#,
             # DTOutput("trouble_table"),
             # DTOutput("trouble_table2"),
@@ -74,7 +80,7 @@ dashboardPage(skin="black",
         ) # fluid row
       ), #tab item
       tabItem(tabName="recordtab",
-        wellPanel(
+        box(width=12, status="info", title="Record New Observation", solidHeader=TRUE,
           helpText("Please enter your observations using the following inputs."),
           fluidRow(
             column(width=4, pickerInput("select_current", label = "Current Intensity", choices = c("None", "Moderate", "High"), selected = "None",
@@ -107,7 +113,10 @@ dashboardPage(skin="black",
             column(width=8, textInput("text_notes", label="Notes"))
           ), # fluid row
           actionButton("submit", "Submit Data", class="btn btn-info")
-        )# #well Panel
+        )#, # box
+        # box(
+        #   width=4, status="info", 
+        # )
       ), #tab item
       tabItem(tabName="usertab",
         box(
@@ -115,7 +124,7 @@ dashboardPage(skin="black",
           div(DTOutput("user_data"), style="overflow-y: auto; height=300px")
         ), # box -table
         box(
-          width=12, height=600, title = "Map", status="primary", solidHeader=TRUE, collapsible=FALSE,
+          width=12, title = "Map", status="primary", solidHeader=TRUE, collapsible=TRUE, #height=600,
           withLoader(leafletOutput("user_map", height = 540), type="html", loader="loader4")
         ) # box - user mpa
       ) #tab item
@@ -123,6 +132,7 @@ dashboardPage(skin="black",
   ) # dashboard body
 ) #dashboard page  
 
+################ OLD UI ##################
 #                 tabPanel(
 #                       fluidPage(
 #                         #shinythemes::themeSelector(),
