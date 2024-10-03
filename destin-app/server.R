@@ -7,6 +7,26 @@
 
 function(input, output, session) {
 
+  observe({
+    showModal(
+      ui = modalDialog(
+        title = "Welcome to the Charter Fishermen's Association Hotspot Mapper",
+        tags$div(
+          tags$p("This app allows you to filter data on a map, record new observations, and view your own recorded data over time."),
+          tags$h4("How to Use the App:"),
+          tags$ul(
+            tags$li("Use the filters in the sidebar to view all data in the Map tab."),
+            tags$li("Share your observations on the water in the Record New Observations tab."),
+            tags$li("View your own observations in the User Data tab.")
+          ),
+        ),
+        footer = tags$p(style="text-align:center;", tags$em("Data collected through this app is confidential and only accessible to approved members.")),
+        easyClose = TRUE,
+        fade = TRUE
+      )
+    )
+  })
+  
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #  
   if (is.null(session$userData$user_id)) {
     session$userData$user_id <- paste0("user_", substr(digest::digest(Sys.time()), 1, 8))
@@ -35,6 +55,7 @@ function(input, output, session) {
   observeEvent(input$submit, {
     #showNotification("submit button pressed")
     #print("submit button pressed")
+    shinyjs::disable("submit")
     
     timestamp <- Sys.time()
     
@@ -111,6 +132,8 @@ function(input, output, session) {
       showNotification("Error writing to Google Sheet", type="error")
     })
     
+    shinyjs::enable("submit")
+    
   }) # end observe event
   
   # testvalues <- read_sheet(ss = sheet_id, sheet="main")
@@ -170,7 +193,7 @@ grid_join <- reactive({setDT(st_join(noaa_vl_prop_sf(), gridshp, join = st_inter
 filtered_data <- reactive({
   grid_join() %>%
     group_by(GRID_ID) %>%
-    dplyr::summarise(
+    dplyr::reframe(
       PROP_DEAD.mean = mean(PROP_DEAD, na.rm = TRUE),  # Calculate the mean PROP_DEAD for each grid
       NUM_SHARKS.mean = mean(NUM_SHARKS, na.rm=TRUE),
       num_points = n(),  # Count the number of points in each grid
@@ -202,10 +225,11 @@ filtered_data2 <- reactive({
 # Merge the results back with the grid shapefile
 gridvalues <- reactive({st_as_sf(merge(x = gridshp, y = filtered_data2(), by = "GRID_ID", all.x = FALSE))})
 
-grid_centroids <- reactive({
-  st_centroid(gridvalues()) %>% select(GRID_ID, depred_class, current_class, sharks_class, dolphins_class, num_points)
-})
-
+suppressWarnings(
+  grid_centroids <- reactive({
+    st_centroid(gridvalues()) %>% select(GRID_ID, depred_class, current_class, sharks_class, dolphins_class, num_points)
+  })
+)
 # grid_centroids_sd <- reactive({
 #   st_centroid(gridvalues()) %>% filter(depred_class != "None")
 # })
@@ -238,7 +262,7 @@ filtered_data_u <- reactive({
     filter(!is.na(GRID_ID),
            timestamp >= threshold_time) %>%
     group_by(GRID_ID) %>%
-    dplyr::summarise(
+    dplyr::reframe(
       current.mean = mean(current_bin, na.rm = TRUE), 
       depred.mean = mean(depred_bin, na.rm=TRUE),
       num_points = n(),
@@ -273,17 +297,21 @@ filtered_data_u <- reactive({
 
 gridvalues_u <- reactive({st_as_sf(merge(x = gridshp, y = filtered_data_u(), by = "GRID_ID", all.x = FALSE))})
 
-grid_centroids_u <- reactive({
-  st_centroid(gridvalues_u()) %>% select(GRID_ID, depred_class, current_class, sharks_class, dolphins_class, num_points)
+suppressWarnings(
+  grid_centroids_u <- reactive({
+    st_centroid(gridvalues_u()) %>% select(GRID_ID, depred_class, current_class, sharks_class, dolphins_class, num_points)
   })
-
-all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
+)
+  
+suppressWarnings(
+  all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
+)
 
 #########################################
 
 # map with proxy
   output$examplemap <- renderLeaflet({
-    showNotification("Update map in order to view data", duration=20, closeButton=TRUE)
+    showNotification("Update map in order to view data", duration=30, closeButton=TRUE)
     leaflet() %>%
       addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 5, maxZoom = 10)) %>%
       setView(lng=-86.75, lat=29.75, zoom=9)  %>%
@@ -529,6 +557,7 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
   calculateOpacity <- function(day_value) {
     # Ensure there are timestamps to work with
     if (length(day_value) == 0) return(rep(1, length(day_value)))  # Default to opacity of 1 if no data
+    if (length(day_value) == 1) return(rep(1, length(day_value)))  # Default to opacity of 1 if one data point
     
     # Normalize the timestamps to get a range between 0 and 1
     current_time <- Sys.time()
@@ -560,7 +589,13 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
   })
   
   output$user_map <- renderLeaflet({
-    leaflet() %>%
+    
+    poppy <- paste0("<strong>Current Intensity: </strong>", userid_data()$current,
+                    "<br><strong>Depredation Intensity: </strong>", userid_data()$depred,
+                    "<br><strong>Notes: </strong>", userid_data()$notes,
+                    "<br><strong>Date Recorded: </strong>", as.Date(userid_data()$timestamp))
+    
+    umap <- leaflet() %>%
       addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 5, maxZoom = 12)) %>%
       setView(lng=-86.75, lat=29.75, zoom=9)  %>%
       addScaleBar(position = 'topleft',
@@ -572,32 +607,68 @@ all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
       addLayersControl(position="topleft", overlayGroups = c("Graticule"), 
                        options=layersControlOptions(collapsed=FALSE)) %>%
       addMarkers(lng=-86.3,
-                 lat=30.25, icon=boat_icon)
+                 lat=30.25, icon=boat_icon) #%>%
+    if (nrow(userid_data()) >= 1) {
+      umap <- umap %>%    
+      addCircleMarkers(
+            data=userid_data(),
+            lng=~as.numeric(longitude),
+            lat=~as.numeric(latitude),
+            weight=3,
+            radius=10,
+            fillOpacity = opacity(),
+            color = ~colors_sp(species),
+            popup=~poppy,
+            group="Species Encountered"
+          ) %>%
+          leaflet::addLegend(position = 'topright',
+                             pal = colors_sp,
+                             values = factor(c("None", "Shark", "Dolphin"), levels = c("None", "Shark", "Dolphin")),
+                             opacity = 1,
+                             title = HTML("Species Encountered"),
+                             group = "Species Encountered",
+                             layerId = "Species Encountered")
+    }
+    return(umap)
   })
   
-  observe({
-    req(userid_data())
-    
-    poppy <- paste0("<strong>Notes: </strong>", userid_data()$notes)
-    
-    proxy <- leafletProxy("user_map")
-    
-    proxy %>% 
-      clearMarkers() %>%
-      addMarkers(lng=-86.3,
-                 lat=30.25, icon=boat_icon) %>%
-      addCircleMarkers(
-          data=userid_data(),
-          lng=~as.numeric(longitude),
-          lat=~as.numeric(latitude),
-          weight=3,
-          radius=10,
-          fillOpacity = opacity(),
-          color = ~colors_sp(species),
-          popup=~poppy,
-          group="Points"
-        )
-  }) # end observe event
+  # observe({
+  #   req(userid_data())
+  #   
+  #   poppy <- paste0("<strong>Current Intensity: </strong>", userid_data()$current,
+  #                   "<br><strong>Depredation Intensity: </strong>", userid_data()$depred,
+  #                   "<br><strong>Notes: </strong>", userid_data()$notes,
+  #                   "<br><strong>Date Recorded: </strong>", as.Date(userid_data()$timestamp))
+  #   
+  #   proxy <- leafletProxy("user_map")
+  #   
+  #   proxy %>% 
+  #     clearControls() %>%
+  #     clearMarkers() %>%
+  #     addControl(html=html_legend, position="topright") %>%
+  #     addLayersControl(position="topleft", overlayGroups = c("Graticule"), 
+  #                      options=layersControlOptions(collapsed=FALSE)) %>%
+  #     addMarkers(lng=-86.3,
+  #                lat=30.25, icon=boat_icon) %>%
+  #     addCircleMarkers(
+  #         data=userid_data(),
+  #         lng=~as.numeric(longitude),
+  #         lat=~as.numeric(latitude),
+  #         weight=3,
+  #         radius=10,
+  #         fillOpacity = opacity(),
+  #         color = ~colors_sp(species),
+  #         popup=~poppy,
+  #         group="Species Encountered"
+  #       ) %>%
+  #     leaflet::addLegend(position = 'topright',
+  #                        pal = colors_sp,
+  #                        values = factor(c("None", "Shark", "Dolphin"), levels = c("None", "Shark", "Dolphin")),
+  #                        opacity = 1,
+  #                        title = HTML("Species Encountered"),
+  #                        group = "Species Encountered",
+  #                        layerId = "Species Encountered")
+  # }) # end observe event
     
 } #end server
 
