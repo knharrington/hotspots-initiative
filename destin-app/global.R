@@ -47,3 +47,5 @@
 
 load("data/preprocess.RData")
 
+googledrive::drive_auth(cache = "destin-app/.secrets", email = "knharrington@mote.org")
+googlesheets4::gs4_auth(token = drive_token())
