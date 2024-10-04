@@ -1,6 +1,5 @@
 ################################################################################
 # This script builds the user interface for the destin app
-# capabilities include: viewing maps and customization options
 ################################################################################
 
 # fluidPage(
@@ -27,14 +26,22 @@
 #       getLocation();
 #     });
 #   '),
-dashboardPage(skin="black",
+
+# mytheme <- create_theme(
+#   adminlte_color(
+#     aqua = "navy"
+#   )
+# )
+
+dashboardPage(skin="black", 
   dashboardHeader(
     title = div(img(src="cfa-logo.png", style = "width:50px;height:50px"), "Charter Fisherman's Association"),
-    titleWidth = 400
+    titleWidth = 400,
+    tags$li(class = "dropdown", shinyauthr::logoutUI(id = "logout"), style="margin-right:15px; margin-top:10px;")
   ), # dashboard header
   dashboardSidebar(
     width = 400,
-    sidebarMenu(id="sidebarid", style="white-space: noraml;",
+    sidebarMenu(id="sidebarid", style="white-space: normal;",
       menuItem("Map", tabName="maptab", icon=icon("map")),
       menuItem("Record New Observation", tabName="recordtab", icon=icon("pen-to-square")),
       menuItem("User Data", tabName="usertab", icon=icon("user")),
@@ -48,20 +55,23 @@ dashboardPage(skin="black",
           radioGroupButtons("radio_depred", "Display Depredation", choices=c("Total", "Sharks", "Dolphins"), selected="Total"),
           radioGroupButtons("radio_layer", "Layer Style", choices=c("Intensity (grid)", "Density (heat)"), selected="Intensity (grid)"),
         ),
-        #fluidRow(
-          #column(width=6, radioGroupButtons("radio_depred", "Display Depredation", choices=c("Total", "Sharks", "Dolphins"), selected="Total")),
-          #column(width=6, radioGroupButtons("radio_layer", "Layer Style", choices=c("Intensity (grid)", "Density (heat)"), selected="Intensity (grid)"))
-        #),
-        actionButton("update", "Update Map", icon=icon("refresh"), class="btn btn-primary")
-      ) # conditional panel
+        actionButton("update", "Update Map", icon=icon("refresh"), class="btn btn-primary", style = "color: white;")
+      ), # conditional panel - map tab
+      conditionalPanel(
+        'input.sidebarid == "usertab"',
+        radioGroupButtons("radio_points", "Display Layer", choices = c("Species Encountered", "Depredation Intensity", "Current Intensity"), selected="Species Encountered", direction="vertical")
+      ) # conditional panel - user tab
     ) # sidebar menu
   ), # dashboard sidebar
-  dashboardBody(#useShinyjs(),
+  dashboardBody(#use_theme(mytheme), #useShinyjs(), 
+    shinyauthr::loginUI("login"),
+    #uiOutput("main_ui")
+    div(id="main_ui",
     tabItems(
       tabItem(tabName="maptab",
         fluidRow(
           box(
-            width=8, status="primary", #title="About the Data",  
+            width=8, status="primary", #title="About the Data",
             HTML("ABOUT THE DATA<br>Displayed is a combination of data collected via the NOAA Observer Program and manually recorded observations.
               The total number of observations refers to the number of points informing the map. Grid cells are 1 mi by 1 mi and reflect the average
               value of points located inside each cell. Current intensity was calculated using averages of the current speed (m/s) from 2000-2017
@@ -80,25 +90,25 @@ dashboardPage(skin="black",
         ) # fluid row
       ), #tab item
       tabItem(tabName="recordtab",
-        box(width=12, status="info", title="Record New Observation", solidHeader=TRUE,
+        box(width=12, status="primary", title="Record New Observation", solidHeader=TRUE,
           helpText("Please enter your observations using the following inputs."),
           fluidRow(
             column(width=4, pickerInput("select_current", label = "Current Intensity", choices = c("None", "Moderate", "High"), selected = "None",
                    choicesOpt = list(
                                     content = sprintf("<span class='label label-%s'>%s</span>",
-                                                      c("success", "warning", "danger"), 
+                                                      c("success", "warning", "danger"),
                                                       c("None", "Moderate", "High"))
             ))),
             column(width=4, pickerInput("select_depred", label = "Depredation Intensity", choices = c("None", "Moderate", "High"), selected = "None",
                                               choicesOpt = list(
                                                 content = sprintf("<span class='label label-%s'>%s</span>",
-                                                                  c("success", "warning", "danger"), 
+                                                                  c("success", "warning", "danger"),
                                                                   c("None", "Moderate", "High"))
             ))),
             column(width=4, pickerInput("select_species", label = "Species Encountered", choices = c("None","Shark", "Dolphin"), selected = "None",
                                               choicesOpt = list(
                                                 content = sprintf("<span class='label label-%s'>%s</span>",
-                                                                  c("success", "primary", "info"), 
+                                                                  c("success", "primary", "info"),
                                                                   c("None", "Shark", "Dolphin"))
             )))
           ), # fluid row
@@ -112,10 +122,10 @@ dashboardPage(skin="black",
           fluidRow(
             column(width=8, textInput("text_notes", label="Notes"))
           ), # fluid row
-          actionButton("submit", "Submit Data", class="btn btn-info")
+          actionButton("submit", "Submit Data", class="btn btn-primary", style = "color: white;")
         )#, # box
         # box(
-        #   width=4, status="info", 
+        #   width=4, status="info",
         # )
       ), #tab item
       tabItem(tabName="usertab",
@@ -129,6 +139,7 @@ dashboardPage(skin="black",
         ) # box - user mpa
       ) #tab item
     ) # tab items
+    ) # div main ui 
   ) # dashboard body
 ) #dashboard page  
 
