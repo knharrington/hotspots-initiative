@@ -1,13 +1,39 @@
 ################################################################################
 # This script is the server for the destin app
-# capabilities include: view maps and customization options
-
 ################################################################################
 #remove(list = ls())
 
 function(input, output, session) {
 
+# handle user authentication
+  shinyjs::hide(id="main_ui")
+
+  credentials <- shinyauthr::loginServer(
+    id = "login",
+    data = user_base,
+    user_col = user,
+    pwd_col = password,
+    sodium_hashed = TRUE,
+    log_out = reactive(logout_init())
+  )
+
+  logout_init <- shinyauthr::logoutServer(
+    id = "logout",
+    active = reactive(credentials()$user_auth)
+  )
+  
+  observeEvent(credentials()$user_auth, {
+    if (credentials()$user_auth) {
+      session$userData$user_id <- credentials()$info$user
+      shinyjs::show(id = "main_ui")  # Show UI when logged in
+    } else {
+      shinyjs::hide(id = "main_ui")  # Hide UI on logout
+    }
+  })
+  
+# create modal dialog
   observe({
+    req(credentials()$info)
     showModal(
       ui = modalDialog(
         title = "Welcome to the Charter Fishermen's Association Hotspot Mapper",
@@ -28,9 +54,9 @@ function(input, output, session) {
   })
   
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #  
-  if (is.null(session$userData$user_id)) {
-    session$userData$user_id <- paste0("user_", substr(digest::digest(Sys.time()), 1, 8))
-  }
+  # if (is.null(session$userData$user_id)) {
+  #   session$userData$user_id <- paste0("user_", substr(digest::digest(Sys.time()), 1, 8))
+  # }
     
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   
@@ -64,26 +90,32 @@ function(input, output, session) {
     # Check if the user wants to use the current location
     
     lon <- if (input$check_loc == "Yes") {
-      -88.9#NA #input$user_long
-      #showNotification("Unable to retrieve location. Please enter manually.", type = "error")
+      #-88.9 #NA #input$user_long
+      showNotification("Unable to retrieve location. Please enter manually.", type = "error")
+      shinyjs::enable("submit")
+      return(NULL)
     } else {
       as.numeric(input$text_long)
     }
     
     if (is.na(lon) || lon > -83.02881 || lon < -88.97083) {
       showNotification("Please enter a valid longitude between -89W and -83W.", type = "error")
+      shinyjs::enable("submit")
       return(NULL)  # Stop further execution if longitude is invalid
     }
     
     lat <- if (input$check_loc == "Yes") {
-      29#NA #input$user_lat
-      #showNotification("Unable to retrieve location. Please enter manually.", type = "error")
+      #29 #NA #input$user_lat
+      showNotification("Unable to retrieve location. Please enter manually.", type = "error")
+      shinyjs::enable("submit")
+      return(NULL)
     } else {
       as.numeric(input$text_lat)
     }
     
     if (is.na(lat) || lat < 28.90000 || lat > 30.40725) {
       showNotification("Please enter a valid latitude between 28.9N and 30.4N.", type = "error")
+      shinyjs::enable("submit")
       return(NULL)  # Stop further execution if latitude is invalid
     }
     
@@ -311,6 +343,7 @@ suppressWarnings(
 
 # map with proxy
   output$examplemap <- renderLeaflet({
+    req(credentials()$info)
     showNotification("Update map in order to view data", duration=30, closeButton=TRUE)
     leaflet() %>%
       addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 5, maxZoom = 10)) %>%
@@ -319,6 +352,10 @@ suppressWarnings(
                   options = scaleBarOptions(maxWidth = 100, metric = TRUE, imperial = TRUE, updateWhenIdle = FALSE)) 
   })
   
+colors <- c("#00a65a", "#f39c12", "#dd4b39")
+pro_levels <- c("None", "Moderate", "High")
+pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "High"))
+
   observeEvent(input$update, {
     
     #print(nrow(gridvalues()))
@@ -326,9 +363,6 @@ suppressWarnings(
     #print(grid_centroids())
     #print(all_centroids())
     
-    colors <- c("#00a65a", "#f39c12", "#dd4b39")
-    pro_levels <- c("None", "Moderate", "High")
-    pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "High"))
     popper <- paste0("<strong>Notes: </strong>observer data")
     poppy <- paste0("<strong>Notes: </strong>", gridvalues_u()$all_notes)
     
@@ -343,8 +377,9 @@ suppressWarnings(
       clearImages() %>%
       clearControls() %>%
       leafem::addMouseCoordinates() %>%
-      addMarkers(lng=-86.3,
-                 lat=30.25, icon=boat_icon) %>%
+      addMarkers(lng=-86.3, #input$user_long
+                 lat=30.25, #input$user_lat
+                 icon=boat_icon) %>%
       addSimpleGraticule(interval = 1, 
                          group = "Graticule") %>%
       addControl(html=html_legend, position="topright") %>%
@@ -533,6 +568,7 @@ suppressWarnings(
 # user data tab outputs
   
   output$user_data <- DT::renderDT({
+    req(credentials()$info)
     req(data_store$data)
     data_store$data %>% 
       filter(
@@ -549,6 +585,7 @@ suppressWarnings(
   })
   
   userid_data <- reactive({
+    req(credentials()$info)
     req(data_store$data)
     data_store$data %>% 
       filter(!is.na(latitude) & !is.na(longitude) & user_id %in% session$userData$user_id)
@@ -589,27 +626,30 @@ suppressWarnings(
   })
   
   output$user_map <- renderLeaflet({
-    
-    poppy <- paste0("<strong>Current Intensity: </strong>", userid_data()$current,
-                    "<br><strong>Depredation Intensity: </strong>", userid_data()$depred,
-                    "<br><strong>Notes: </strong>", userid_data()$notes,
+    req(credentials()$info)
+
+    poppy <- paste0("<strong>Notes: </strong>", userid_data()$notes,
                     "<br><strong>Date Recorded: </strong>", as.Date(userid_data()$timestamp))
-    
+
     umap <- leaflet() %>%
       addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 5, maxZoom = 12)) %>%
       setView(lng=-86.75, lat=29.75, zoom=9)  %>%
       addScaleBar(position = 'topleft',
                   options = scaleBarOptions(maxWidth = 100, metric = TRUE, imperial = TRUE, updateWhenIdle = FALSE)) %>%
       leafem::addMouseCoordinates() %>%
-      addSimpleGraticule(interval = 1, 
+      addSimpleGraticule(interval = 1,
                          group = "Graticule") %>%
       addControl(html=html_legend, position="topright") %>%
-      addLayersControl(position="topleft", overlayGroups = c("Graticule"), 
+      addLayersControl(position="topleft", overlayGroups = c("Graticule"),
                        options=layersControlOptions(collapsed=FALSE)) %>%
-      addMarkers(lng=-86.3,
-                 lat=30.25, icon=boat_icon) #%>%
+      addMarkers(lng=-86.3, #input$user_long
+                 lat=30.25, #input$user_lat
+                 icon=boat_icon) #%>%
     if (nrow(userid_data()) >= 1) {
-      umap <- umap %>%    
+      if (input$radio_points == "Species Encountered") {
+      umap <- umap %>%
+        clearGroup("Depredation Intensity") %>%
+        clearGroup("Current Intensity") %>%
       addCircleMarkers(
             data=userid_data(),
             lng=~as.numeric(longitude),
@@ -628,48 +668,57 @@ suppressWarnings(
                              title = HTML("Species Encountered"),
                              group = "Species Encountered",
                              layerId = "Species Encountered")
+      } else if (input$radio_points == "Depredation Intensity") {
+        umap <- umap %>%
+          clearGroup("Species Encountered") %>%
+          clearGroup("Current Intensity") %>%
+          addCircleMarkers(
+            data=userid_data(),
+            lng=~as.numeric(longitude),
+            lat=~as.numeric(latitude),
+            weight=3,
+            radius=10,
+            fillOpacity = opacity(),
+            color = ~pro_pal(depred),
+            popup=~poppy,
+            group="Depredation Intensity"
+          ) %>%
+          addLegend(
+            position = 'topright',
+            pal = pro_pal,
+            values = factor(c("None", "Moderate", "High"), levels = c("None", "Moderate", "High")),
+            opacity = 1,
+            title = HTML("Depredation Intensity"),
+            group = "Depredation Intensity",
+            layerId = "Depredation Intensity")
+      } else if (input$radio_points == "Current Intensity") {
+        umap <- umap %>%
+          clearGroup("Depredation Intensity") %>%
+          clearGroup("Species Encountered") %>%
+          addCircleMarkers(
+            data=userid_data(),
+            lng=~as.numeric(longitude),
+            lat=~as.numeric(latitude),
+            weight=3,
+            radius=10,
+            fillOpacity = opacity(),
+            color = ~pro_pal(current),
+            popup=~poppy,
+            group="Current Intensity"
+          ) %>%
+          addLegend(
+            position = 'topright',
+            pal = pro_pal,
+            values = factor(c("None", "Moderate", "High"), levels = c("None", "Moderate", "High")),
+            opacity = 1,
+            title = HTML("Current Intensity"),
+            group = "Current Intensity",
+            layerId = "Current Intensity")
+      }
     }
     return(umap)
   })
   
-  # observe({
-  #   req(userid_data())
-  #   
-  #   poppy <- paste0("<strong>Current Intensity: </strong>", userid_data()$current,
-  #                   "<br><strong>Depredation Intensity: </strong>", userid_data()$depred,
-  #                   "<br><strong>Notes: </strong>", userid_data()$notes,
-  #                   "<br><strong>Date Recorded: </strong>", as.Date(userid_data()$timestamp))
-  #   
-  #   proxy <- leafletProxy("user_map")
-  #   
-  #   proxy %>% 
-  #     clearControls() %>%
-  #     clearMarkers() %>%
-  #     addControl(html=html_legend, position="topright") %>%
-  #     addLayersControl(position="topleft", overlayGroups = c("Graticule"), 
-  #                      options=layersControlOptions(collapsed=FALSE)) %>%
-  #     addMarkers(lng=-86.3,
-  #                lat=30.25, icon=boat_icon) %>%
-  #     addCircleMarkers(
-  #         data=userid_data(),
-  #         lng=~as.numeric(longitude),
-  #         lat=~as.numeric(latitude),
-  #         weight=3,
-  #         radius=10,
-  #         fillOpacity = opacity(),
-  #         color = ~colors_sp(species),
-  #         popup=~poppy,
-  #         group="Species Encountered"
-  #       ) %>%
-  #     leaflet::addLegend(position = 'topright',
-  #                        pal = colors_sp,
-  #                        values = factor(c("None", "Shark", "Dolphin"), levels = c("None", "Shark", "Dolphin")),
-  #                        opacity = 1,
-  #                        title = HTML("Species Encountered"),
-  #                        group = "Species Encountered",
-  #                        layerId = "Species Encountered")
-  # }) # end observe event
-    
 } #end server
 
 
