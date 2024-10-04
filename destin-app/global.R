@@ -1,7 +1,5 @@
 ################################################################################
 # This script is the global environment for the destin app
-# It stores objects needed in the sever and/or ui
-
 ################################################################################
 
 # load packages
@@ -35,6 +33,7 @@
   library(leafem)
   library(DT)
   library(shinydashboard)
+  library(fresh)
   
   #library(KernSmooth)
   #library(ks)
@@ -43,9 +42,13 @@
   library(googlesheets4)
   
   library(digest)
+  
+  library(shinyauthr)
+  library(sodium)
 }
 
 load("data/preprocess.RData")
 
 googledrive::drive_auth(cache = "destin-app/.secrets", email = "knharrington@mote.org")
 googlesheets4::gs4_auth(token = drive_token())
+
