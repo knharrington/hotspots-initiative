@@ -2,6 +2,10 @@
 # This script is the global environment for the destin app
 ################################################################################
 
+## FUNCTIONS TO ADD
+##    -modify or delete previous entries
+##    -find user's location for recording obs and displaying boat
+
 # load packages
 {
   library(tidyverse)
@@ -33,7 +37,8 @@
   library(leafem)
   library(DT)
   library(shinydashboard)
-  library(fresh)
+  #library(bs4Dash)
+  #library(fresh)
   
   #library(KernSmooth)
   #library(ks)
@@ -47,8 +52,8 @@
   library(sodium)
 }
 
-load("data/preprocess.RData")
+load("preprocess.RData")
 
-googledrive::drive_auth(cache = "destin-app/.secrets", email = "knharrington@mote.org")
+googledrive::drive_auth(cache = ".secrets", email = "knharrington@mote.org")
 googlesheets4::gs4_auth(token = drive_token())
 
