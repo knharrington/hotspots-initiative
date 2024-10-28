@@ -40,7 +40,7 @@
 
 options(
   gargle_oauth_email=TRUE,
-  gargle_oauth_cache = "destin-app/.secrets",
+  gargle_oauth_cache = "/.secrets",
   gargle_oauth_path = NULL
 )
 
@@ -54,7 +54,7 @@ sheet_id <- drive_get("cfa-test-sheet")$id
 #Data.In=read.csv("data/DestinData.csv")
 #setwd("./Destin_App2")
 #Data.In <- fread("destin-app/data/NOAA-Observer-data.csv")
-Data.In <- fread("data/NOAA-Observer-data.csv")
+Data.In <- fread("destin-app/data/NOAA-Observer-data.csv")
 
 {noaa_data=Data.In
 
@@ -115,7 +115,11 @@ noaa_vl_des <- noaa_data %>%
 
 # #read using the sf package
 #grid.sq1 <- st_read(dsn="destin-app/shapefiles", layer = "DESTIN_GRID_NOAA_1MI")
-grid.sq1 <- st_read(dsn="shapefiles", layer = "DESTIN_GRID_NOAA_1MI")
+
+#grid.sq1 <- st_read(dsn="shapefiles", layer = "DESTIN_GRID_NOAA_1MI")
+
+grid.sq1 <- st_read(dsn="destin-app/shapefiles", layer = "destin_1mi")
+
 #grid.sq10 <- st_read(dsn = "shapefiles", layer = "GOM_GRID_10MIN_fullgulf")
 #grid.sq5 <- st_read(dsn = "shapefiles", layer = "GOM_GRID_5MIN_new")
 # grid.sq2.5 <- st_read(dsn = "shapefiles", layer = "GOM_GRID_2_5MIN")
@@ -127,8 +131,8 @@ grid.sq1 <- st_read(dsn="shapefiles", layer = "DESTIN_GRID_NOAA_1MI")
 #st_crs(grid.sq5)
 
 #Need to simplify to the same columns
-grid.sq1=grid.sq1[1] 
-names(grid.sq1)[names(grid.sq1) == "Id"] <- "GRID_ID"
+#grid.sq1=grid.sq1[1] 
+#names(grid.sq1)[names(grid.sq1) == "Id"] <- "GRID_ID"
 gridshp=grid.sq1
 
 bbox <- st_bbox(gridshp)
@@ -138,7 +142,7 @@ boat_icon <- makeIcon(iconUrl = "www/boat2.svg",
                       iconAnchorX=15, iconAnchorY=15)
 html_legend <- "<img src='boat2.svg' style='width:35px;height:30px;'> Current Location<br/>"
 
-current_speed <- fread("data/Oceanic_current_speed.csv") %>%
+current_speed <- fread("destin-app/data/Oceanic_current_speed.csv") %>%
   dplyr::select(Longitude, Latitude, Oceanic_current_speed_October) %>%
   rename("Speed_Oct" = "Oceanic_current_speed_October")
 
@@ -165,10 +169,17 @@ gridvalues_c <- st_as_sf(merge(x = gridshp, y = filtered_data_c, by = "GRID_ID",
 # pal = colorNumeric("Spectral", gridvalues_c$class_bin)
 # leaflet() %>% addTiles() %>% addPolygons(data=gridvalues_c, fillColor = ~pal(class_bin), color=~pal(class_bin))
 
+user_base <- tibble::tibble(
+  user = c("cfemm-admin", "test-user"),
+  password = purrr::map_chr(c("temp", "hotspots"), sodium::password_store),
+  permissions = c("admin", "standard"),
+  name = c("Admin Account", "Test User")
+)
+
 #save(gridshp, sheet_id, noaa_data, noaa_vl_des, file = "destin-app/data/preprocess.RData")
-save(gridshp, sheet_id, noaa_data, noaa_vl_des, boat_icon, html_legend, file = "data/preprocess.RData")
+save(gridshp, sheet_id, noaa_data, noaa_vl_des, boat_icon, html_legend, user_base, file = "destin-app/data/preprocess.RData")
 
-
+#saveRDS(user_base, "./destin-app/data/user_base.rds")
 ################################################################################
 ### Non-reactive world
 
