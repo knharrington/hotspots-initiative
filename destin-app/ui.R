@@ -3,29 +3,25 @@
 ################################################################################
 
 # fluidPage(
-#   tags$script('
-#     function getLocation() {
-#       if (navigator.geolocation) {
+# tags$script('
+#       $(document).ready(function () {
 #         navigator.geolocation.getCurrentPosition(onSuccess, onError);
-#       } else {
-#         alert("Geolocation is not supported by this browser.");
-#       }
-#     }
-# 
-#     function onSuccess(position) {
-#       Shiny.onInputChange("user_lat", position.coords.latitude);
-#       Shiny.onInputChange("user_long", position.coords.longitude);
-#     }
-# 
-#     function onError(error) {
-#       console.warn("ERROR(" + error.code + "): " + error.message);
-#     }
-# 
-#     // Call the function when the page loads
-#     $(document).on("shiny:connected", function() {
-#       getLocation();
-#     });
-#   '),
+#               
+#         function onError (err) {
+#           Shiny.onInputChange("geolocation", false);
+#         }
+#               
+#         function onSuccess (position) {
+#           setTimeout(function () {
+#             var coords = position.coords;
+#             console.log(coords.latitude + ", " + coords.longitude);
+#             Shiny.onInputChange("geolocation", true);
+#             Shiny.onInputChange("lat", coords.latitude);
+#             Shiny.onInputChange("long", coords.longitude);
+#           }, 1100)
+#         }
+#       });
+#               '),
 
 # mytheme <- create_theme(
 #   adminlte_color(
@@ -90,6 +86,7 @@ dashboardPage(skin="black",
         ) # fluid row
       ), #tab item
       tabItem(tabName="recordtab",
+        fluidRow(
         box(width=12, status="primary", title="Record New Observation", solidHeader=TRUE,
           helpText("Please enter your observations using the following inputs."),
           fluidRow(
@@ -124,19 +121,24 @@ dashboardPage(skin="black",
           ), # fluid row
           actionButton("submit", "Submit Data", class="btn btn-primary", style = "color: white;")
         )#, # box
+        ) # fluidrow
         # box(
         #   width=4, status="info",
         # )
       ), #tab item
       tabItem(tabName="usertab",
+        fluidRow(
         box(
           width=12, title="User Data", status="primary", solidHeader=TRUE, collapsible=TRUE,
           div(DTOutput("user_data"), style="overflow-y: auto; height=300px")
-        ), # box -table
+        ) # box -table
+        ),
+        fluidRow(
         box(
           width=12, title = "Map", status="primary", solidHeader=TRUE, collapsible=TRUE, #height=600,
           withLoader(leafletOutput("user_map", height = 540), type="html", loader="loader4")
         ) # box - user mpa
+        ) # fluidrow
       ) #tab item
     ) # tab items
     ) # div main ui 
