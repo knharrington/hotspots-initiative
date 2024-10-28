@@ -98,7 +98,7 @@ function(input, output, session) {
       as.numeric(input$text_long)
     }
     
-    if (is.na(lon) || lon > -83.02881 || lon < -88.97083) {
+    if (is.na(lon) || lon > -82.996 || lon < -90.500) {
       showNotification("Please enter a valid longitude between -89W and -83W.", type = "error")
       shinyjs::enable("submit")
       return(NULL)  # Stop further execution if longitude is invalid
@@ -113,8 +113,8 @@ function(input, output, session) {
       as.numeric(input$text_lat)
     }
     
-    if (is.na(lat) || lat < 28.90000 || lat > 30.40725) {
-      showNotification("Please enter a valid latitude between 28.9N and 30.4N.", type = "error")
+    if (is.na(lat) || lat < 28.90000 || lat > 30.692) {
+      showNotification("Please enter a valid latitude between 28.9N and 30.5N.", type = "error")
       shinyjs::enable("submit")
       return(NULL)  # Stop further execution if latitude is invalid
     }
@@ -346,7 +346,7 @@ suppressWarnings(
     req(credentials()$info)
     showNotification("Update map in order to view data", duration=30, closeButton=TRUE)
     leaflet() %>%
-      addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 5, maxZoom = 10)) %>%
+      addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 6, maxZoom = 10)) %>%
       setView(lng=-86.75, lat=29.75, zoom=9)  %>%
       addScaleBar(position = 'topleft',
                   options = scaleBarOptions(maxWidth = 100, metric = TRUE, imperial = TRUE, updateWhenIdle = FALSE)) 
@@ -632,7 +632,7 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
                     "<br><strong>Date Recorded: </strong>", as.Date(userid_data()$timestamp))
 
     umap <- leaflet() %>%
-      addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 5, maxZoom = 12)) %>%
+      addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 6, maxZoom = 12)) %>%
       setView(lng=-86.75, lat=29.75, zoom=9)  %>%
       addScaleBar(position = 'topleft',
                   options = scaleBarOptions(maxWidth = 100, metric = TRUE, imperial = TRUE, updateWhenIdle = FALSE)) %>%
