@@ -5,7 +5,7 @@
 
 function(input, output, session) {
 
-# handle user authentication
+# Handle user authentication by only showing the main user interface when credentials are satisfied
   shinyjs::hide(id="main_ui")
 
   credentials <- shinyauthr::loginServer(
@@ -31,7 +31,7 @@ function(input, output, session) {
     }
   })
   
-# create modal dialog
+# create modal dialog as a welcome/landing page
   observe({
     req(credentials()$info)
     showModal(
@@ -125,6 +125,7 @@ function(input, output, session) {
       input$text_notes
     }
     
+    # compile repsonses into a data frame
     response_data <- data.frame(
       current = input$select_current,
       depred = input$select_depred,
@@ -145,6 +146,7 @@ function(input, output, session) {
     # If not, let's write to it and set up column names. 
     # Otherwise, let's append to it.
     
+    # merge the new responses with the existing google sheet
     tryCatch({
     if (nrow(values) == 0) {
       #showNotification("Writing new data to sheet")
@@ -159,6 +161,7 @@ function(input, output, session) {
       #showNotification("Data recorded successfully", duration=5, type="message")
     }
       
+    # handle errors
     update_sheet_data()
     }, error = function(e) {
       showNotification("Error writing to Google Sheet", type="error")
