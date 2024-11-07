@@ -3,37 +3,43 @@ title: "Charter Fishermen's Association Implementation Plan"
 #date: "`r Sys.Date()`"
 output: 
   #word_document: default
-  html_document: default 
+  #html_document: default
+  bookdown::html_document2: 
+    number_sections: false
+  #bookdown::word_document2:
+    #number_sections: false 
 bibliography: references.bib
 ---
 
 ```{r setup, include=FALSE}
 # Set global options for code chunks
-# New defaults are to evaluate code, include outputs, include the code, do not include messages or warnings
+# New defaults are to not evaluate code, include outputs, include the code, do not include messages or warnings
 knitr::opts_chunk$set(echo = TRUE, include=TRUE, message=FALSE, warning=FALSE, eval=FALSE)
 ```
 
 ## Data Workflow
 
-![](./NFWF_Data_Workflow.png){width="100%"}
+```{r workflow-img, eval=TRUE, echo=FALSE, fig.align = 'center', out.width = "100%", fig.cap = "Diagram depicting the proposed workflow of the Destin Charter Fishermen's Association communications network."}
+# (Figure \@ref(fig:workflow-img))
+knitr::include_graphics("figures/NFWF_Data_Workflow.png")
+```
 
-Figure 1. Diagram depicting the proposed workflow of the Destin Charter Fishermen's Association communications network.
+*To demonstrate the data workflow of the implementation plan, R [@base] and Shiny [@shiny] will be used for example code. A live version of the example application can be found at [https://cfemm.shinyapps.io/destin-app](https://cfemm.shinyapps.io/destin-app/).*
 
-*To demonstrate the data workflow of the implementation plan, R [@base] and Shiny [@shiny] will be used for example code.*
-
-A. **Network participants record observations at sea**
+### A. Network participants record observations at sea
 
 a.  **Network participants:** Professional charter captains from Destin, FL with federal reef fish permits are selected by founding members and subject to non-disclosure agreements. There is a potential pool of \~60 charter and 30-40 commercial permitted vessels active. Nine captains produce \~1,700 trips annually.
 
 b.  **Observations at-sea:** Users record the presence/absence or intensity of depredators and the strength of currents while at sea, which is anticipated to be 10s to 100s of observations per day fleet-wide. Additional observations to record can be phased-in such as discards, metered (YSI) environmental conditions, bait availability, tidelines, obstructions, water clarity, and red-tide.
 
-![](./CFA_record_ui_new.png){width="100%"}
+### B. Data is recorded and mapping products are received via web-based application
 
-Figure 2. Screenshot of an example user interface for recording observations.
+a.  **Data recorded:** Recordings take place within a simple app interface (Figure \@ref(fig:ui-img)). for near real-time data entry and viewing, with optional delayed manual entry. Depredation, sharks, dolphins, and current strengths are reported as “none”, “moderate”, or “high”, with their values decided by the user group (e.g. “None”= 0 instances, “Moderate” = 1-3 instances, “High” = 4+ instances). Discards are a possible future addition. “Notes” are optional.
 
-B. **Data is recorded and mapping products are received via web-based application**
-
-a.  **Data recorded:** Recordings take place within a simple app interface (e.g. Figure 2) for near real-time data entry and viewing, with optional delayed manual entry. Depredation, sharks, dolphins, and current strengths are reported as “none”, “moderate”, or “high”, with their values decided by the user group (e.g. “None”= 0 instances, “Moderate” = 1-3 instances, “High” = 4+ instances). Discards are a possible future addition. “Notes” are optional.
+```{r ui-img, eval=TRUE, echo=FALSE, fig.align = 'center', out.width = "100%", fig.cap = "An example user interface for recording observations."}
+# (Figure \@ref(fig:ui-img))
+knitr::include_graphics("figures/CFA_record_ui.png")
+```
 
 b.  **Mapping products:** Real-time fisheries reports are shown as grids/heat maps overlaid on a digital basemap, including selectable environment layers (surface temperature or water clarity; via remote sensing) in the future.
 
@@ -81,11 +87,11 @@ tabItem(tabName="recordtab",
 
 ```
 
-C. **Satellite communication through Starlink provides internet access**
+### C. Satellite communication through Starlink provides internet access
 
 a.  **Starlink communication:** Starlink is integrated with existing onboard networks via wireless router. Users connect to the application through an internet browser on a computer or mobile device. 
 
-D. **A cloud-based server updates the user with maps using a time-slice view**
+### D. A cloud-based server updates the user with maps using a time-slice view
 
 a.  **Integrated maps:** Interactive displays of map data may use platforms such as Google Maps API, Mapbox API, or Leaflet (as exemplified here). The basemap utilizes provider tiles such as the “Esri World Ocean Basemap” to include basic bathymetric visualizations. A geolocation API will display the current location of the vessel. User-specified inputs determine display details for the density rasters or grid polygons. Publicly available environmental data can be integrated as additional layers.
 
@@ -270,27 +276,43 @@ output$examplemap <- renderLeaflet({
 
 ```
 
-E. **Gulf Fisheries Research Foundation (GFRF) serves as the institutional home for the implementation plan**
+### E. Gulf Fisheries Research Foundation (GFRF) serves as the institutional home for the implementation plan
 
 a.  **Institutional home:** GFRF is the research arm of the Charter Fishermen’s Association (CFA) and can provide an administrative and managerial role for other local CFA networks.
 
 b.  **Implementation plan:** The plan includes membership information, Starlink subscriptions, database management, and server/code updates for the web application.
 
-F. **Code cleans inputs and processes raw data for integration into grid cells or heatmaps**
+### F. Code cleans inputs and processes raw data for integration into grid cells or heatmaps
 
 a.  **Cleans inputs:** Code parses date-time and lat-long data into a consistent format. Manual entry is restricted to feasible dates and ranges by utilizing error-handling pop-up messages.
 
-b.  **Data processing:** Depredation and current strength observations (“None”, “Moderate”, or “High”) are translated into numerical inputs. Points within a 1-sq mile grid cell are averaged to determine a ‘stoplight color’ classification of the cell to depict areas to avoid or target (e.g. Figure 1). Heat maps are developed by filtering the data by the user’s input, computing an appropriate bandwidth, followed by a 2D binned kernel density estimate which is converted to a raster for visualizing high (warm colors) or low (cool colors) point density (e.g. Figure 2). Computations would be made on network-wide observations (not for current strength), but users may only view their own recorded data points.
+b.  **Data processing:** Depredation and current strength observations (“None”, “Moderate”, or “High”) are translated into numerical inputs. Points within a 1-sq mile grid cell are averaged to determine a ‘stoplight color’ classification of the cell to depict areas to avoid or target (Figure \@ref(fig:grid-img)). Heat maps are developed by filtering the data by the user’s input, computing an appropriate bandwidth, followed by a 2D binned kernel density estimate which is converted to a raster for visualizing high (warm colors) or low (cool colors) point density (Figure \@ref(fig:heat-img)). Computations would be made on network-wide observations (not for current strength), but users may only view their own recorded data points.
 
-c.  **Mapping:** Maps are reactive to additional observations recorded, and any filters that the user defines (e.g. time slider, depredation vs current, etc.). Grid or heat map display may be toggled depending on user preference, as seen in Figure 3. User-specific point data may also be viewed on the "User Data" page. Users can select grid cells or point data to view details, “Notes” recorded, or obtain coordinates from the map by mousing-over it.
+```{r grid-img, eval=TRUE, echo=FALSE, fig.align = 'center', out.width = "100%", fig.cap = "Example map displaying depredation intensity in 1 mi by 1 mi grid cells."}
+# (Figure \@ref(fig:grid-img))
+knitr::include_graphics("figures/CFA_grid_map.png")
+```
 
-![](./CFA_ui_inputs.png){width="25%"}
+```{r heat-img, eval=TRUE, echo=FALSE, fig.align = 'center', out.width = "100%", fig.cap = "Example heat map displaying density of depredation events."}
+# (Figure \@ref(fig:heat-img))
+knitr::include_graphics("figures/CFA_heat_map.png")
+```
 
-Figure 3. User input options available to display layers on the map.
+c.  **Mapping:** Maps are reactive to additional observations recorded, and any filters that the user defines (e.g. time slider, depredation vs current, etc.). Grid or heat map display may be toggled depending on user preference (Figure \@ref(fig:filter-img)). User-specific point data may also be viewed on the "User Data" page. Users can select grid cells or point data to view details, “Notes” recorded, or obtain coordinates from the map by mousing-over it.
 
-G. **Data is stored for future analysis on long-term trends and predictive modeling**
+```{r filter-img, eval=TRUE, echo=FALSE, fig.align = 'center', out.width = "25%", fig.cap = "User input options available to display layers on the main map."}
+# (Figure \@ref(fig:filter-img))
+knitr::include_graphics("figures/CFA_ui_inputs.png")
+```
 
-a.  **Data storage:** Each observation recorded has an observation ID, user ID, and timestamp that is appended at the time of entry and uploaded to the master database. The data is stored in a cloud-based relational database, such as MySQL or SQL Server, in order to maintain security, scalability, and speed. All data is accessible to GFRF, grouped data are accessible to all users, and user-specific data is only accessible to the specified user.
+### G. Data is stored for future analysis on long-term trends and predictive modeling
+
+a.  **Data storage:** Each observation recorded has an observation ID, user ID, and timestamp that is appended at the time of entry and uploaded to the master database (Figure \@ref(fig:table-img)). The data is stored in a cloud-based relational database, such as MySQL or SQL Server, in order to maintain security, scalability, and speed. All data is accessible to GFRF, grouped data are accessible to all users, and user-specific data is only accessible to the specified user.
+
+```{r table-img, eval=TRUE, echo=FALSE, fig.align = 'center', out.width = "100%", fig.cap = "User-specific information is recorded at the time of observation and only made available to the specified user."}
+# (Figure \@ref(fig:table-img))
+knitr::include_graphics("figures/CFA_user_table.png")
+```
 
 b.  **Future analyses:** Long-term trends (e.g. GAMs) and predictive modeling based on network-reported data may be updated on a rolling basis as determined by GFRF. Results could be sent as alerts by email or text to users on areas to avoid within a certain time frame. There is potential for the use of data recorded by the participants in reports to NMFS for electronic logbook, stock assessments, etc.
 
