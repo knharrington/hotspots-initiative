@@ -9,7 +9,6 @@
 # load packages
 {
   library(tidyverse)
-  #library(plyr)
   library(data.table)
   library(lubridate)
   
@@ -19,9 +18,6 @@
   library(spdep)
   library(sfdep)
   library(fields)
-  
-  #library(rasterVis)
-  #library(raster)
   library(RColorBrewer)
 
   library(leaflet)
@@ -30,18 +26,12 @@
   library(plotly)
   library(htmlwidgets)
   library(shinyWidgets)
-  #library(shinythemes)
   library(shinycustomloader)
   library(leaflet.extras)
   library(leaflet.extras2)
   library(leafem)
   library(DT)
   library(shinydashboard)
-  #library(bs4Dash)
-  #library(fresh)
-  
-  #library(KernSmooth)
-  #library(ks)
   
   library(googledrive)
   library(googlesheets4)
@@ -52,8 +42,10 @@
   library(sodium)
 }
 
+# load data made in the pre-processing file
 load("preprocess.RData")
 
+# Set Google sheet information
 googledrive::drive_auth(cache = ".secrets", email = "knharrington@mote.org")
 googlesheets4::gs4_auth(token = drive_token())
 
