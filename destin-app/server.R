@@ -31,7 +31,7 @@ function(input, output, session) {
     }
   })
   
-# create modal dialog as a welcome/landing page
+# Create modal dialog as a welcome/landing page
   observe({
     req(credentials()$info)
     showModal(
@@ -53,21 +53,21 @@ function(input, output, session) {
     )
   })
   
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #  
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+  # If not utilizing usernames to filter data, create IDs based on session info
   # if (is.null(session$userData$user_id)) {
   #   session$userData$user_id <- paste0("user_", substr(digest::digest(Sys.time()), 1, 8))
   # }
-    
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   
-  # Create a reactiveValues object to store the Google Sheets data
+  # Create a reactiveValues object to store the Google Sheet data
   data_store <- reactiveValues(data = NULL)
   
-  # Function to fetch and update the data from Google Sheets
+  # Function to fetch and update the data from Google Sheet
   update_sheet_data <- function() {
     tryCatch({
       sheet_data <- read_sheet(ss = sheet_id, sheet = "main")
-      data_store$data <- sheet_data  # Update the reactive value
+      data_store$data <- sheet_data  
       showNotification("Data updated successfully", type="message")
     }, error = function(e) {
       showNotification("Error reading Google Sheet", type="error")
@@ -81,13 +81,15 @@ function(input, output, session) {
   observeEvent(input$submit, {
     #showNotification("submit button pressed")
     #print("submit button pressed")
+    
+    # Prevent duplicate entries due to double-clicking
     shinyjs::disable("submit")
     
     timestamp <- Sys.time()
     
     user_id <- session$userData$user_id
     
-    # Check if the user wants to use the current location
+    # Check if the user wants to use the current location - turned off for now
     
     lon <- if (input$check_loc == "Yes") {
       #-88.9 #NA #input$user_long
@@ -101,7 +103,7 @@ function(input, output, session) {
     if (is.na(lon) || lon > -82.996 || lon < -90.500) {
       showNotification("Please enter a valid longitude between -89W and -83W.", type = "error")
       shinyjs::enable("submit")
-      return(NULL)  # Stop further execution if longitude is invalid
+      return(NULL)  
     }
     
     lat <- if (input$check_loc == "Yes") {
@@ -116,7 +118,7 @@ function(input, output, session) {
     if (is.na(lat) || lat < 28.90000 || lat > 30.692) {
       showNotification("Please enter a valid latitude between 28.9N and 30.5N.", type = "error")
       shinyjs::enable("submit")
-      return(NULL)  # Stop further execution if latitude is invalid
+      return(NULL)  
     }
     
     notes <- if (input$text_notes == "") {
@@ -125,7 +127,7 @@ function(input, output, session) {
       input$text_notes
     }
     
-    # compile repsonses into a data frame
+    # Compile responses into a data frame
     response_data <- data.frame(
       current = input$select_current,
       depred = input$select_depred,
@@ -142,11 +144,9 @@ function(input, output, session) {
     values <- read_sheet(ss = sheet_id, sheet="main")
     
     #showNotification(paste("Rows in sheet:", nrow(values)))
-    # Check to see if our sheet has any existing data.
-    # If not, let's write to it and set up column names. 
-    # Otherwise, let's append to it.
+    # Check to see if sheet has any existing data. If not, write to it and set up column names. Otherwise, append to it.
     
-    # merge the new responses with the existing google sheet
+    # Merge the new responses with the existing Google Sheet
     tryCatch({
     if (nrow(values) == 0) {
       #showNotification("Writing new data to sheet")
@@ -161,7 +161,7 @@ function(input, output, session) {
       #showNotification("Data recorded successfully", duration=5, type="message")
     }
       
-    # handle errors
+    # Handle connectivity errors
     update_sheet_data()
     }, error = function(e) {
       showNotification("Error writing to Google Sheet", type="error")
@@ -169,7 +169,7 @@ function(input, output, session) {
     
     shinyjs::enable("submit")
     
-  }) # end observe event
+  }) # End observe event
   
   # testvalues <- read_sheet(ss = sheet_id, sheet="main")
   # print(testvalues)
@@ -191,18 +191,19 @@ function(input, output, session) {
 
 ################################################################################
   
-# filter dataset based on user inputs  
+# Filter dataset based on user inputs  
 filtered_prop <- reactive({
     noaa_vl_des %>% filter(Days_Report <= input$days[1])#,
                            #Days_Report <= input$days[1])#,
                            #Effort_ID <= input$effort)
 })
 
-# check number of vessels included
+# Check number of vessels included
   # dep_vess <- noaa_vl_des %>% filter(Days_Report == 1, 
   #                                    CONDITION == "DEAD")
   # n_distinct(dep_vess$VESSEL_ID)
 
+# Calculate fields for NOAA dataset 
 noaa_vl_prop <- reactive({
   filtered_prop() %>% 
   filter(!is.na(LAT_BEGIN_SET) & !is.na(LON_BEGIN_SET)) %>%
@@ -224,7 +225,7 @@ noaa_vl_prop_sf <- reactive({st_as_sf(noaa_vl_prop(), coords = c("UNIQUE_RET_LON
 grid_join <- reactive({setDT(st_join(noaa_vl_prop_sf(), gridshp, join = st_intersects))})
 #grid_join_dt <- setDT(grid_join)
 
-# filter and aggregate the data if the cells contain at least 3 vessels contributing
+# Filter and aggregate the data if the cells contain at least 3 vessels contributing
 filtered_data <- reactive({
   grid_join() %>%
     group_by(GRID_ID) %>%
@@ -344,7 +345,7 @@ suppressWarnings(
 
 #########################################
 
-# map with proxy
+# Map with proxy
   output$examplemap <- renderLeaflet({
     req(credentials()$info)
     showNotification("Update map in order to view data", duration=30, closeButton=TRUE)
@@ -557,7 +558,7 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
   # })
 
 ############################# 
-# print number of observations in the map
+# Print number of observations in the map
   output$text_obs <- renderInfoBox({
     infoBox(
       "Total Observations",
@@ -568,7 +569,7 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
   })
 
 ############################
-# user data tab outputs
+# User data tab outputs
   
   output$user_data <- DT::renderDT({
     req(credentials()$info)
@@ -618,7 +619,7 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
     return(opacity)
   }
   
-  # Calculate colors for species
+  # Calculate colors for species - aligns with the input colors
   colors_sp <- colorFactor(c("#00a65a","#3c8dbc", "#00c0ef"), levels = c("None", "Shark", "Dolphin"))
   
   # Calculate opacity for days since recording
@@ -628,6 +629,7 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
     calculateOpacity(timestamps)
   })
   
+  # create user map
   output$user_map <- renderLeaflet({
     req(credentials()$info)
 
