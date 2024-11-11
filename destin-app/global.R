@@ -42,7 +42,7 @@
   library(sodium)
 }
 
-# load data made in the pre-processing file
+# Load data made in the preprocessing file
 load("preprocess.RData")
 
 # Set Google sheet information
