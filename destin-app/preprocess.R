@@ -1,59 +1,31 @@
-# preprocess destin app data
+# This script preprocesses data needed in the example Charter Fisherman's Association web-based application. 
 
-# load packages
+# Load packages
 {
   library(tidyverse)
-  library(plyr)
   library(data.table)
   library(lubridate)
-  
-  library(spatial)
-  library(sp)
   library(sf)
-  library(spdep)
-  library(sfdep)
-  library(fields)
-  
-  library(rasterVis)
-  library(raster)
-  library(RColorBrewer)
-  
   library(leaflet)
-  library(kableExtra)
-  library(shiny)
-  library(plotly)
-  library(htmlwidgets)
-  library(shinyWidgets)
-  library(shinythemes)
-  library(shinycustomloader)
-  library(leaflet.extras2)
-  
-  library(KernSmooth)
-  library(ks)
-  
   library(googledrive)
   library(googlesheets4)
-  
   library(digest)
 }
 
-# set global options for handling Google token
+{
+# Set global options for handling Google Sheets token
 options(
   gargle_oauth_email=TRUE,
   gargle_oauth_cache = "/.secrets",
   gargle_oauth_path = NULL
 )
 
-# to be done once upon setup
+# To be done once upon initializing the desired Google Sheet
 # gs4_create(name="cfa-test-sheet",
 #            sheets="main")
 
-# google sheet id
+# Assign Google Sheet ID
 sheet_id <- drive_get("cfa-test-sheet")$id
-
-#Data.In=read.csv("data/DestinData.csv")
-#setwd("./Destin_App2")
-#Data.In <- fread("destin-app/data/NOAA-Observer-data.csv")
 
 # Read NOAA Observer data and format columns
 Data.In <- fread("destin-app/data/NOAA-Observer-data.csv")
@@ -93,7 +65,7 @@ noaa_data$TRIPNUMBER <- random_mask(noaa_data$TRIPNUMBER)
 noaa_data$UNIQUE_RETRIEVAL <- paste(noaa_data$VESSEL_ID, noaa_data$TRIPNUMBER, noaa_data$SETNUMBER, sep="_")
 }
 
-# Filter NOAA data for vertical line gear near Destin
+# Filter NOAA observer data for vertical line gear near Destin
 noaa_vl_des <- noaa_data %>%
   filter(TRIP_GEAR == 'VL' & COMMON_NAME != "NOCATCH" & LON_BEGIN_SET > -89 & LAT_BEGIN_SET > 29 & !is.na(SET_TIME_START)) %>%
   mutate(Effort_ID = dense_rank(TRIPNUMBER)) %>%
@@ -101,18 +73,8 @@ noaa_vl_des <- noaa_data %>%
   mutate(Days_Report = dense_rank(as.Date(SET_DATE, format="%m/%d/%Y"))) %>%
   ungroup()
 
-
-# #read using the sf package
-#grid.sq1 <- st_read(dsn="destin-app/shapefiles", layer = "DESTIN_GRID_NOAA_1MI")
-#grid.sq1 <- st_read(dsn="shapefiles", layer = "DESTIN_GRID_NOAA_1MI")
-
 # Load shapefile for 1mi by 1mi grid
-gridshp <- st_read(dsn="destin-app/shapefiles", layer = "destin_1mi")
-
-#Need to simplify to the same columns
-#grid.sq1=grid.sq1[1] 
-#names(grid.sq1)[names(grid.sq1) == "Id"] <- "GRID_ID"
-#gridshp=grid.sq1
+gridshp <- st_read(dsn="shapefiles", layer = "destin_1mi")
 
 # Determine bounding box for shapefile limits
 bbox <- st_bbox(gridshp)
@@ -134,6 +96,7 @@ current_speed_sf <- st_as_sf(current_speed, coords = c("Longitude", "Latitude"),
 # Perform the spatial join for current speed data and grid
 grid_join_c <- setDT(st_join(current_speed_sf, gridshp, join = st_intersects))
 
+# Assign bins to current speed data
 filtered_data_c <- grid_join_c %>%
     group_by(GRID_ID) %>%
     summarise(
@@ -147,12 +110,8 @@ filtered_data_c <- grid_join_c %>%
 
 # Determine grid values for current speed data
 gridvalues_c <- st_as_sf(merge(x = gridshp, y = filtered_data_c, by = "GRID_ID", all.x = FALSE))
-#summary(current_speed)
 
-# pal = colorNumeric("Spectral", gridvalues_c$class_bin)
-# leaflet() %>% addTiles() %>% addPolygons(data=gridvalues_c, fillColor = ~pal(class_bin), color=~pal(class_bin))
-
-# create a fixed userbase and hash the passwords
+# create an example for a fixed userbase and hash the passwords
 user_base <- tibble::tibble(
   user = c("cfemm-admin", "test-user"),
   password = purrr::map_chr(c("temp", "hotspots"), sodium::password_store),
@@ -160,9 +119,9 @@ user_base <- tibble::tibble(
   name = c("Admin Account", "Test User")
 )
 
-# Save varibales for use in the server and global files
+# Save variables for use in the server
 save(gridshp, sheet_id, noaa_data, noaa_vl_des, boat_icon, html_legend, user_base, file = "destin-app/data/preprocess.RData")
-
+}
 ################################################################################
 ### Non-reactive world
 
