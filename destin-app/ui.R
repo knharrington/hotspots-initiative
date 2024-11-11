@@ -90,23 +90,26 @@ dashboardPage(skin="black",
         box(width=12, status="primary", title="Record New Observation", solidHeader=TRUE,
           helpText("Please enter your observations using the following inputs."),
           fluidRow(
-            column(width=4, pickerInput("select_current", label = "Current Intensity", choices = c("None", "Moderate", "High"), selected = "None",
-                   choicesOpt = list(
-                                    content = sprintf("<span class='label label-%s'>%s</span>",
-                                                      c("success", "warning", "danger"),
-                                                      c("None", "Moderate", "High"))
+            column(width=4, pickerInput("select_current", label = "Current Intensity", 
+                                        choices = c("None", "Moderate", "High"), selected = "None",
+                                        choicesOpt = list(
+                                                    content = sprintf("<span class='label label-%s'>%s</span>",
+                                                          c("success", "warning", "danger"),
+                                                          c("None", "Moderate", "High"))
             ))),
-            column(width=4, pickerInput("select_depred", label = "Depredation Intensity", choices = c("None", "Moderate", "High"), selected = "None",
-                                              choicesOpt = list(
-                                                content = sprintf("<span class='label label-%s'>%s</span>",
-                                                                  c("success", "warning", "danger"),
-                                                                  c("None", "Moderate", "High"))
+            column(width=4, pickerInput("select_depred", label = "Depredation Intensity", 
+                                        choices = c("None", "Moderate", "High"), selected = "None",
+                                        choicesOpt = list(
+                                                    content = sprintf("<span class='label label-%s'>%s</span>",
+                                                          c("success", "warning", "danger"),
+                                                          c("None", "Moderate", "High"))
             ))),
-            column(width=4, pickerInput("select_species", label = "Species Encountered", choices = c("None","Shark", "Dolphin"), selected = "None",
-                                              choicesOpt = list(
-                                                content = sprintf("<span class='label label-%s'>%s</span>",
-                                                                  c("success", "primary", "info"),
-                                                                  c("None", "Shark", "Dolphin"))
+            column(width=4, pickerInput("select_species", label = "Species Encountered", 
+                                        choices = c("None","Shark", "Dolphin"), selected = "None",
+                                        choicesOpt = list(
+                                                    content = sprintf("<span class='label label-%s'>%s</span>",
+                                                          c("success", "primary", "info"),
+                                                          c("None", "Shark", "Dolphin"))
             )))
           ), # fluid row
           fluidRow(
