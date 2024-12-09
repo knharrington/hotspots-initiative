@@ -68,7 +68,8 @@ function(input, output, session) {
     tryCatch({
       sheet_data <- read_sheet(ss = sheet_id, sheet = "main")
       data_store$data <- sheet_data  
-      showNotification("Data updated successfully", type="message")
+      #show_alert("Data updated successfully", type="success", btn_colors = "#3b8dbc")
+      #showNotification("Data updated successfully", type="message")
     }, error = function(e) {
       showNotification("Error reading Google Sheet", type="error")
       print(paste("Error reading sheet:", e))
@@ -83,40 +84,80 @@ function(input, output, session) {
     #print("submit button pressed")
     
     # Prevent duplicate entries due to double-clicking
-    shinyjs::disable("submit")
+    #shinyjs::disable("submit")
+    
+    ask_confirmation(
+      inputId = "confirm",
+      title = "Confirm Observations",
+      btn_colors = c("#dd4b39","#3b8dbc")
+    )
+    
+  })
+  
+  observeEvent(input$confirm,{
+    
+    if (isTRUE(input$confirm)) {
     
     timestamp <- Sys.time()
     
     user_id <- session$userData$user_id
     
+    #print(input$geolocation)
     # Check if the user wants to use the current location - turned off for now
     
-    lon <- if (input$check_loc == "Yes") {
-      #-88.9 #NA #input$user_long
-      showNotification("Unable to retrieve location. Please enter manually.", type = "error")
-      shinyjs::enable("submit")
+    if (input$check_loc == "Yes") {
+      if (input$geolocation == TRUE) {
+        lon <- as.numeric(input$long)
+        #print(input$long)
+      } else {
+      #showNotification("Unable to retrieve location. Please enter manually.", type = "error")  
+      show_alert("Error writing data",
+                 text = "Unable to retrieve location. Please enter manually.",
+                 type="error", btn_colors = "#dd4b39")
       return(NULL)
+      }
+      shinyjs::enable("submit")
+      #return(NULL)
     } else {
-      as.numeric(input$text_long)
+      lon <- as.numeric(input$text_long)
     }
     
-    if (is.na(lon) || lon > -82.996 || lon < -90.500) {
-      showNotification("Please enter a valid longitude between -89W and -83W.", type = "error")
+    print(lon)
+    
+    if (is.na(lon) || lon > -82.996 || lon < -90.500 || is.null(lon)) {
+      #print("Error: Longitude is outside the valid range.")
+      show_alert("Error writing data",
+                 text = "Valid longitudes are between -90.5W and -83W.",
+                 type="error", btn_colors = "#dd4b39")
+      #showNotification("Please enter a valid longitude between -89W and -83W.", type = "error")
       shinyjs::enable("submit")
       return(NULL)  
     }
     
-    lat <- if (input$check_loc == "Yes") {
-      #29 #NA #input$user_lat
-      showNotification("Unable to retrieve location. Please enter manually.", type = "error")
-      shinyjs::enable("submit")
+    if (input$check_loc == "Yes") {
+      if (input$geolocation == TRUE) {
+        lat <- as.numeric(input$lat)
+        #print(input$lat)
+      } else {
+      show_alert("Error writing data",
+                 text = "Unable to retrieve location. Please enter manually.",
+                 type="error", btn_colors = "#dd4b39")
+      #showNotification("Unable to retrieve location. Please enter manually.", type = "error")
       return(NULL)
+      }
+      shinyjs::enable("submit")
+      #return(NULL)
     } else {
-      as.numeric(input$text_lat)
+      lat <- as.numeric(input$text_lat)
     }
     
-    if (is.na(lat) || lat < 28.90000 || lat > 30.692) {
-      showNotification("Please enter a valid latitude between 28.9N and 30.5N.", type = "error")
+    print(lat)
+    
+    if (is.na(lat) || lat < 28.90000 || lat > 30.692 || is.null(lat)) {
+      show_alert("Error writing data",
+                 text = "Valid latitudes are between 28.9N and 30.6N.",
+                 type="error", btn_colors = "#dd4b39")
+      #showNotification("Please enter a valid latitude between 28.9N and 30.5N.", type = "error")
       shinyjs::enable("submit")
       return(NULL)  
     }
@@ -134,6 +175,7 @@ function(input, output, session) {
       species = input$select_species,
       latitude = lat,
       longitude = lon,
+      shared = input$check_share,
       notes = notes,
       timestamp = timestamp,
       user_id = as.character(user_id)
@@ -163,13 +205,20 @@ function(input, output, session) {
       
     # Handle connectivity errors
     update_sheet_data()
+    
     }, error = function(e) {
       showNotification("Error writing to Google Sheet", type="error")
     })
     
+    show_alert("Data updated successfully", type="success", btn_colors = "#3b8dbc")
+    
     shinyjs::enable("submit")
     
-  }) # End observe event
+    } else if (isFALSE(input$confirm)) {
+      return(NULL)
+      shinyjs::enable("submit")
+    }
+  }, ignoreNULL=TRUE) # End input confirm
   
   # testvalues <- read_sheet(ss = sheet_id, sheet="main")
   # print(testvalues)
@@ -273,7 +322,7 @@ suppressWarnings(
 ######################################### user data
 
 user_data <- reactive({data_store$data %>% #data_store$data %>% sheet_data %>% 
-  filter(!is.na(longitude) & !is.na(latitude)) %>%
+  filter(shared == "Yes" & !is.na(longitude) & !is.na(latitude)) %>% # only add shareable data
   mutate(
     current_bin = case_when(
       current == "None" ~ 1,
@@ -381,14 +430,22 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
       clearImages() %>%
       clearControls() %>%
       leafem::addMouseCoordinates() %>%
-      addMarkers(lng=-86.3, #input$user_long
-                 lat=30.25, #input$user_lat
-                 icon=boat_icon) %>%
+      # addMarkers(lng=-86.3, #input$user_long
+      #            lat=30.25, #input$user_lat
+      #            icon=boat_icon) %>%
+      # addControl(html=html_legend, position="topright") %>%
       addSimpleGraticule(interval = 1, 
                          group = "Graticule") %>%
-      addControl(html=html_legend, position="topright") %>%
       addLayersControl(position="topleft", overlayGroups = c("Graticule"), 
                        options=layersControlOptions(collapsed=FALSE))
+    
+    if (input$geolocation == TRUE) {
+      proxy %>%
+        addMarkers(lng=input$long,
+                   lat=input$lat,
+                   icon=boat_icon) %>%
+        addControl(html=html_legend, position="topright")
+    }
     
     if (input$radio_depred == "Total" & input$radio_layer == "Intensity (grid)"){
     proxy %>%
@@ -583,6 +640,7 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
              "Species Encountered" = "species",
              "Longitude" = "longitude",
              "Latitude" = "latitude",
+             "Shared" = "shared",
              "Notes" = "notes",
              "Time Recorded (UTC)" = "timestamp",
              "User ID" = "user_id")
@@ -644,12 +702,21 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
       leafem::addMouseCoordinates() %>%
       addSimpleGraticule(interval = 1,
                          group = "Graticule") %>%
-      addControl(html=html_legend, position="topright") %>%
+      #addControl(html=html_legend, position="topright") %>%
       addLayersControl(position="topleft", overlayGroups = c("Graticule"),
-                       options=layersControlOptions(collapsed=FALSE)) %>%
-      addMarkers(lng=-86.3, #input$user_long
-                 lat=30.25, #input$user_lat
-                 icon=boat_icon) #%>%
+                       options=layersControlOptions(collapsed=FALSE)) #%>%
+      # addMarkers(lng=-86.3, #input$user_long
+      #            lat=30.25, #input$user_lat
+      #            icon=boat_icon) #%>%
+    
+    if (input$geolocation == TRUE) {
+      umap <- umap %>%
+        addMarkers(lng=input$long,
+                   lat=input$lat,
+                   icon=boat_icon) %>%
+        addControl(html=html_legend, position="topright")
+    }
+    
     if (nrow(userid_data()) >= 1) {
       if (input$radio_points == "Species Encountered") {
       umap <- umap %>%
