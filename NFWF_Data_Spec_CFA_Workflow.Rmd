@@ -337,7 +337,7 @@ Importantly, the example application is currently incapable of performing two cr
 
 This script preprocesses data need in the server and user interface of the app.
 
-```{r preprocess}
+```{r preprocess, echo=FALSE}
 # Load packages for preprocessing
 {
   library(tidyverse)
@@ -466,7 +466,7 @@ save(gridshp, sheet_id, noaa_data, noaa_vl_des, boat_icon, html_legend, user_bas
 
 This script loads data and packages needed in the server and user interface of the app.
 
-```{r global}
+```{r global, echo=FALSE}
 # Load packages for the entire app
 {
   library(tidyverse)
@@ -510,7 +510,7 @@ googlesheets4::gs4_auth(token = drive_token())
 
 This script contains the server and all reactive objects needed to handle events.
 
-```{r server}
+```{r server, echo=FALSE}
 function(input, output, session) {
 
 # Handle user authentication by only showing the main user interface when credentials are satisfied
@@ -1237,7 +1237,7 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
 
 This script contains the user interface for the app in a dashboard format.
 
-```{r ui}
+```{r ui, echo=FALSE}
 dashboardPage(skin="black", 
   dashboardHeader(
     title = div(img(src="cfa-logo.png", style = "width:50px;height:50px"), "Charter Fisherman's Association"),
