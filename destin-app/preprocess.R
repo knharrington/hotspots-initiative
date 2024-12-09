@@ -74,7 +74,7 @@ noaa_vl_des <- noaa_data %>%
   ungroup()
 
 # Load shapefile for 1mi by 1mi grid
-gridshp <- st_read(dsn="shapefiles", layer = "destin_1mi")
+gridshp <- st_read(dsn="destin-app/shapefiles", layer = "destin_1mi")
 
 # Determine bounding box for shapefile limits
 bbox <- st_bbox(gridshp)
@@ -120,7 +120,7 @@ user_base <- tibble::tibble(
 )
 
 # Save variables for use in the server
-save(gridshp, sheet_id, noaa_data, noaa_vl_des, boat_icon, html_legend, user_base, file = "destin-app/data/preprocess.RData")
+save(gridshp, sheet_id, noaa_data, noaa_vl_des, boat_icon, html_legend, user_base, file = "destin-app/preprocess.RData")
 }
 ################################################################################
 ### Non-reactive world
