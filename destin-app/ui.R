@@ -2,34 +2,14 @@
 # This script builds the user interface for the destin app
 ################################################################################
 
-# fluidPage(
-# tags$script('
-#       $(document).ready(function () {
-#         navigator.geolocation.getCurrentPosition(onSuccess, onError);
-#               
-#         function onError (err) {
-#           Shiny.onInputChange("geolocation", false);
-#         }
-#               
-#         function onSuccess (position) {
-#           setTimeout(function () {
-#             var coords = position.coords;
-#             console.log(coords.latitude + ", " + coords.longitude);
-#             Shiny.onInputChange("geolocation", true);
-#             Shiny.onInputChange("lat", coords.latitude);
-#             Shiny.onInputChange("long", coords.longitude);
-#           }, 1100)
-#         }
-#       });
-#               '),
-
 # mytheme <- create_theme(
 #   adminlte_color(
 #     aqua = "navy"
 #   )
 # )
 
-dashboardPage(skin="black", 
+dashboardPage(skin="black",
+              
   dashboardHeader(
     title = div(img(src="cfa-logo.png", style = "width:50px;height:50px"), "Charter Fisherman's Association"),
     titleWidth = 400,
@@ -60,6 +40,28 @@ dashboardPage(skin="black",
     ) # sidebar menu
   ), # dashboard sidebar
   dashboardBody(#use_theme(mytheme), #useShinyjs(), 
+    
+    tags$head(
+    tags$script(HTML('
+      $(document).ready(function () {
+        navigator.geolocation.getCurrentPosition(onSuccess, onError);
+
+        function onError (err) {
+        Shiny.onInputChange("geolocation", false);
+        }
+
+       function onSuccess (position) {
+          setTimeout(function () {
+              var coords = position.coords;
+              console.log(coords.latitude + ", " + coords.longitude);
+              Shiny.onInputChange("geolocation", true);
+              Shiny.onInputChange("lat", coords.latitude);
+              Shiny.onInputChange("long", coords.longitude);
+          }, 1100)
+      }
+      });
+    '))),
+    
     shinyauthr::loginUI("login"),
     #uiOutput("main_ui")
     div(id="main_ui",
@@ -120,6 +122,7 @@ dashboardPage(skin="black",
                                               textInput("text_lat", label = "Latitude")))
           ), #fluid row
           fluidRow(
+            column(width=4, radioButtons("check_share", label="Share Data with Group", c("Yes", "No"), selected = "Yes")),
             column(width=8, textInput("text_notes", label="Notes"))
           ), # fluid row
           actionButton("submit", "Submit Data", class="btn btn-primary", style = "color: white;")
