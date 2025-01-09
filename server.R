@@ -1,5 +1,5 @@
 ################################################################################
-# This script is the server for the destin app
+# This script is the server for the Destin CFA app
 ################################################################################
 #remove(list = ls())
 
@@ -22,6 +22,7 @@ function(input, output, session) {
     active = reactive(credentials()$user_auth)
   )
   
+  # Dynamically display the UI according to login permissions
   observeEvent(credentials()$user_auth, {
     if (credentials()$user_auth) {
       session$userData$user_id <- credentials()$info$user
@@ -79,6 +80,7 @@ function(input, output, session) {
   # Fetch initial data on app startup
   update_sheet_data()
   
+  # Confirm data entries
   observeEvent(input$submit, {
     #showNotification("submit button pressed")
     #print("submit button pressed")
@@ -94,6 +96,7 @@ function(input, output, session) {
     
   })
   
+  # perform error checks if data is confirmed
   observeEvent(input$confirm,{
     
     if (isTRUE(input$confirm)) {
@@ -247,10 +250,6 @@ filtered_prop <- reactive({
                            #Effort_ID <= input$effort)
 })
 
-# Check number of vessels included
-  # dep_vess <- noaa_vl_des %>% filter(Days_Report == 1, 
-  #                                    CONDITION == "DEAD")
-  # n_distinct(dep_vess$VESSEL_ID)
 
 # Calculate fields for NOAA dataset 
 noaa_vl_prop <- reactive({
@@ -411,16 +410,8 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
 
   observeEvent(input$update, {
     
-    #print(nrow(gridvalues()))
-    #print(filtered_data2())
-    #print(grid_centroids())
-    #print(all_centroids())
-    
     popper <- paste0("<strong>Notes: </strong>observer data")
     poppy <- paste0("<strong>Notes: </strong>", gridvalues_u()$all_notes)
-    
-    # valid_data <- data_store$data %>%
-    #   dplyr::filter(!is.na(latitude) & !is.na(longitude))
     
     proxy <- leafletProxy("examplemap")
       
@@ -594,25 +585,6 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
     }
       
   })
-
-# trouble shooting tables
-  # observe({
-  #   output$trouble_table <- DT::renderDT({
-  #     all_centroids()
-  #   })
-  # })
-  # 
-  # observe({
-  #   output$trouble_table2 <- DT::renderDT({
-  #     grid_centroids()
-  #   })
-  # })
-  # 
-  # observe({
-  #   output$trouble_table3 <- DT::renderDT({
-  #     gridvalues()
-  #   })
-  # })
 
 ############################# 
 # Print number of observations in the map
@@ -792,9 +764,4 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
   })
   
 } #end server
-
-
-
- 
-
 
