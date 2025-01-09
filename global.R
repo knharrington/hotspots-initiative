@@ -4,7 +4,6 @@
 
 ## FUNCTIONS TO ADD
 ##    -modify or delete previous entries
-##    -find user's location for recording obs and displaying boat
 
 # load packages
 {
