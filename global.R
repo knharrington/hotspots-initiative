@@ -42,7 +42,7 @@
 }
 
 # Load data made in the preprocessing file
-load("data/preprocess.RData")
+load("preprocess.RData")
 
 # Set Google sheet information
 googledrive::drive_auth(cache = ".secrets", email = "knharrington@mote.org")
