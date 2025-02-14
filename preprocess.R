@@ -120,7 +120,7 @@ user_base <- tibble::tibble(
 )
 
 # Save variables for use in the server
-save(gridshp, bbox, sheet_id, noaa_data, noaa_vl_des, boat_icon, html_legend, user_base, file = "data/preprocess.RData")
+save(gridshp, bbox, sheet_id, noaa_data, noaa_vl_des, boat_icon, html_legend, user_base, file = "preprocess.RData")
 }
 ################################################################################
 ### Non-reactive world
