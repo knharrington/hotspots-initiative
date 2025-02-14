@@ -19,4 +19,4 @@ To ensure the integrity of the data, the app includes automated checks for commo
 Once data is submitted, the app sends it to a secure Google Sheet for storage and generates interactive maps that visualize depredation hotspots in near real-time. Users can visualize their own data or the group’s collective data in a 3 mi by 3 mi grid or a heat map and filter the entries by species type and time frame, enabling them to identify patterns and make informed decisions quickly. For example, fishermen can avoid areas with high rates of depredation, reducing unwanted interactions with predators such as sharks and dolphins and reducing bycatch mortality of damaged fish.
 
 ### Visit the App
-Visit the app [here](https://cfemm.shinyapps.io/destin-app) using credentials (username: test-user; password: hotspots).
+Visit the app [here](https://cfemm.shinyapps.io/hotspots-initiative) using credentials (username: test-user; password: hotspots).
