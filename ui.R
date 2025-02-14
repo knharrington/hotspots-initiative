@@ -16,6 +16,7 @@ dashboardPage(skin="black",
       menuItem("Map", tabName="maptab", icon=icon("map")),
       menuItem("Record New Observation", tabName="recordtab", icon=icon("pen-to-square")),
       menuItem("User Data", tabName="usertab", icon=icon("user")),
+      menuItem("Submit Feedback", icon=icon("comment"), href="https://forms.gle/MgGVi5ZKF4pCYBuF9"),
       conditionalPanel(
         'input.sidebarid == "maptab"',
         #hr(),
@@ -26,11 +27,20 @@ dashboardPage(skin="black",
           radioGroupButtons("radio_depred", "Display Depredation", choices=c("Total", "Sharks", "Dolphins"), selected="Total"),
           radioGroupButtons("radio_layer", "Layer Style", choices=c("Intensity (grid)", "Density (heat)"), selected="Intensity (grid)"),
         ),
+        awesomeCheckbox("show_markers", label="Show Events", value=TRUE),
         actionButton("update", "Update Map", icon=icon("refresh"), class="btn btn-primary", style = "color: white;")
       ), # conditional panel - map tab
       conditionalPanel(
         'input.sidebarid == "usertab"',
-        radioGroupButtons("radio_points", "Display Layer", choices = c("Species Encountered", "Depredation Intensity", "Current Intensity"), selected="Species Encountered", direction="vertical")
+        awesomeRadio("display_all", label="Display All Data", choices = c("Yes", "No"), selected = "No", inline=TRUE),
+        conditionalPanel('input.display_all == "No"',
+          sliderTextInput("days_u", "Days Since Reporting", choices=seq(from=1, to=14, by=1), selected=c(3), grid=TRUE)
+        ),  
+        radioGroupButtons("radio_points", "Display Layer", 
+                          choices = c("Species Encountered", "Depredation Intensity", "Current Intensity"), 
+                          selected="Species Encountered", direction="vertical"),
+        awesomeCheckbox("show_markers_u", label="Show Events", value=TRUE),
+        actionButton("update_u", "Update Map", icon=icon("refresh"), class="btn btn-primary", style = "color: white;")
       ) # conditional panel - user tab
     ) # sidebar menu
   ), # dashboard sidebar
@@ -66,7 +76,7 @@ dashboardPage(skin="black",
           box(
             width=8, status="primary", #title="About the Data",
             HTML("ABOUT THE DATA<br>Displayed is a combination of data collected via the NOAA Observer Program and manually recorded observations.
-              The total number of observations refers to the number of points informing the map. Grid cells are 1 mi by 1 mi and reflect the average
+              The total number of observations refers to the number of points informing the map. Grid cells are 3 mi by 3 mi and reflect the average
               value of points located inside each cell. Current intensity was calculated using averages of the current speed (m/s) from 2000-2017
               during the month of October.")),
           infoBoxOutput("text_obs", width=4),
@@ -84,6 +94,10 @@ dashboardPage(skin="black",
         box(width=12, status="primary", title="Record New Observation", solidHeader=TRUE,
           helpText("Please enter your observations using the following inputs."),
           fluidRow(
+            column(width=6, awesomeRadio("which_obs", label="Observation Type", choices = c("Catch", "Event"), selected = "Catch", inline=TRUE)
+          )), # fluid row
+          conditionalPanel(condition="input.which_obs == 'Catch'",
+            fluidRow(
             column(width=4, pickerInput("select_current", label = "Current Intensity", 
                                         choices = c("None", "Moderate", "High"), selected = "None",
                                         choicesOpt = list(
@@ -105,19 +119,31 @@ dashboardPage(skin="black",
                                                           c("success", "primary", "info"),
                                                           c("None", "Shark", "Dolphin"))
             )))
-          ), # fluid row
+          )), # fluid row
+          conditionalPanel(condition="input.which_obs == 'Event'",
+            fluidRow(
+            column(width=6, pickerInput("select_event", label = "Event Type",
+                                        choices=c("Floating Debris", "Fish Kill", "Red Tide", "Other"),
+                                        options=pickerOptions(contatiner="body"), width="100%"))
+          )), # fluid row
           fluidRow(
-            column(width=4, radioButtons("check_loc", label = "Use Current Location", c("Yes", "No"), selected = "Yes")),
+            column(width=4, awesomeRadio("check_loc", label = "Use Current Location*", c("Yes", "No"), selected = "Yes")),
             column(width=4, conditionalPanel(condition="input.check_loc == 'No'",
                                               textInput("text_long", label = "Longitude"))),
             column(width=4, conditionalPanel(condition="input.check_loc == 'No'",
                                               textInput("text_lat", label = "Latitude")))
           ), #fluid row
           fluidRow(
-            column(width=4, radioButtons("check_share", label="Share Data with Group", c("Yes", "No"), selected = "Yes")),
             column(width=8, textInput("text_notes", label="Notes"))
           ), # fluid row
-          actionButton("submit", "Submit Data", class="btn btn-primary", style = "color: white;")
+          fluidRow(
+            column(width=4, awesomeCheckbox("check_share", label="Share Data with Group", value = TRUE))
+          ), # fluid row
+          actionButton("submit", "Submit Data", class="btn btn-primary", style = "color: white;"),
+          hr(),
+          helpText(em("*Geolocation services in your browser may provide approximate latitude and longitude data, 
+                   which can be affected by factors like device settings, network conditions, and location permissions, 
+                   potentially leading to slight inaccuracies in map plotting."))
         )#, # box
         ) # fluidrow
       ), #tab item
