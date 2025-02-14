@@ -127,10 +127,10 @@ function(input, output, session) {
     
     print(lon)
     
-    if (is.na(lon) || lon > -82.996 || lon < -90.500 || is.null(lon)) {
+    if (is.na(lon) || lon > bbox$xmax || lon < bbox$xmin || is.null(lon)) {
       #print("Error: Longitude is outside the valid range.")
       show_alert("Error writing data",
-                 text = "Valid longitudes are between -90.5W and -83W.",
+                 text = paste0("Valid longitudes are between ", round(bbox$xmin, 2), "W and ", round(bbox$xmax, 2), "W."),
                  type="error", btn_colors = "#dd4b39")
       #showNotification("Please enter a valid longitude between -89W and -83W.", type = "error")
       shinyjs::enable("submit")
@@ -156,9 +156,9 @@ function(input, output, session) {
     
     print(lat)
     
-    if (is.na(lat) || lat < 28.90000 || lat > 30.692 || is.null(lat)) {
+    if (is.na(lat) || lat < bbox$ymin || lat > bbox$ymax || is.null(lat)) {
       show_alert("Error writing data",
-                 text = "Valid latitudes are between 28.9N and 30.6N.",
+                 text = paste0("Valid latitudes are between ", round(bbox$ymin, 2), "N and ", round(bbox$ymax, 2), "N."),
                  type="error", btn_colors = "#dd4b39")
       #showNotification("Please enter a valid latitude between 28.9N and 30.5N.", type = "error")
       shinyjs::enable("submit")
@@ -171,14 +171,46 @@ function(input, output, session) {
       input$text_notes
     }
     
+    marker <- if (input$which_obs == "Catch") {
+      "No"
+    }  else {
+      "Yes"
+    }
+    
+    event <- if (input$which_obs == "Catch") {
+      NA
+    } else {
+      input$select_event
+    }
+    
+    current <- if (input$which_obs == "Event") {
+      NA
+    } else {
+      input$select_current
+    }
+    
+    depred <- if (input$which_obs == "Event") {
+      NA
+    } else {
+      input$select_depred
+    }
+    
+    species <- if (input$which_obs == "Event") {
+      NA
+    } else {
+      input$select_species
+    }
+    
     # Compile responses into a data frame
     response_data <- data.frame(
-      current = input$select_current,
-      depred = input$select_depred,
-      species = input$select_species,
+      current = current,
+      depred = depred,
+      species = species,
       latitude = lat,
       longitude = lon,
       shared = input$check_share,
+      marker = marker,
+      event = event,
       notes = notes,
       timestamp = timestamp,
       user_id = as.character(user_id)
@@ -321,7 +353,7 @@ suppressWarnings(
 ######################################### user data
 
 user_data <- reactive({data_store$data %>% #data_store$data %>% sheet_data %>% 
-  filter(shared == "Yes" & !is.na(longitude) & !is.na(latitude)) %>% # only add shareable data
+  filter(marker == "No" & shared == TRUE & !is.na(longitude) & !is.na(latitude)) %>% # only add shareable data
   mutate(
     current_bin = case_when(
       current == "None" ~ 1,
@@ -391,27 +423,40 @@ suppressWarnings(
   all_centroids <- reactive({rbind(grid_centroids(), grid_centroids_u())})
 )
 
+user_markers <- reactive({
+  threshold_time <- Sys.time() - as.difftime(input$days, units = "days")
+  data_store$data %>% #data_store$data %>% sheet_data %>% 
+    filter(marker == "Yes" & shared == TRUE & timestamp >= threshold_time
+           & !is.na(longitude) & !is.na(latitude)) # only add shareable data
+})
+
 #########################################
 
 # Map with proxy
   output$examplemap <- renderLeaflet({
     req(credentials()$info)
-    showNotification("Update map in order to view data", duration=30, closeButton=TRUE)
+    showNotification("Update map in order to view data", duration = 30, closeButton = TRUE)
     leaflet() %>%
-      addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 6, maxZoom = 10)) %>%
-      setView(lng=-86.75, lat=29.75, zoom=9)  %>%
+      addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 6, maxZoom = 12)) %>%
+      setView(lng=-90, lat=27.5, zoom=7)  %>%
       addScaleBar(position = 'topleft',
                   options = scaleBarOptions(maxWidth = 100, metric = TRUE, imperial = TRUE, updateWhenIdle = FALSE)) 
   })
   
 colors <- c("#00a65a", "#f39c12", "#dd4b39")
 pro_levels <- c("None", "Moderate", "High")
-pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "High"))
+pro_pal <- colorFactor(colors, levels = pro_levels, domain = c("None", "Moderate", "High"))
+marker_icon <- makeAwesomeIcon(icon = "exclamation",
+                               library = "fa",
+                               markerColor = "darkred",
+                               iconColor = "#FFFFFF")
 
   observeEvent(input$update, {
     
     popper <- paste0("<strong>Notes: </strong>observer data")
     poppy <- paste0("<strong>Notes: </strong>", gridvalues_u()$all_notes)
+    poppem <- paste0("<strong>Event Type: </strong>", user_markers()$event,
+                     "<br><strong>Notes: </strong>", user_markers()$notes)
     
     proxy <- leafletProxy("examplemap")
       
@@ -421,21 +466,17 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
       clearImages() %>%
       clearControls() %>%
       leafem::addMouseCoordinates() %>%
-      # addMarkers(lng=-86.3, #input$user_long
-      #            lat=30.25, #input$user_lat
-      #            icon=boat_icon) %>%
-      # addControl(html=html_legend, position="topright") %>%
       addSimpleGraticule(interval = 1, 
                          group = "Graticule") %>%
-      addLayersControl(position="topleft", overlayGroups = c("Graticule"), 
-                       options=layersControlOptions(collapsed=FALSE))
+      addLayersControl(position = "topleft", overlayGroups = c("Graticule"), 
+                       options = layersControlOptions(collapsed = FALSE))
     
     if (input$geolocation == TRUE) {
       proxy %>%
-        addMarkers(lng=input$long,
-                   lat=input$lat,
-                   icon=boat_icon) %>%
-        addControl(html=html_legend, position="topright")
+        addMarkers(lng = input$long,
+                   lat = input$lat,
+                   icon = boat_icon) %>%
+        addControl(html = html_legend, position="topright")
     }
     
     if (input$radio_depred == "Total" & input$radio_layer == "Intensity (grid)"){
@@ -470,9 +511,9 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
       addHeatmap(data = all_centroids() %>% filter(depred_class != "None"),
         #gradient = "Spectral",
         intensity = ~num_points,
-        blur = 35,
+        blur = 28,
         #max = 0.05,
-        radius = 30,
+        radius = 20,
         group = "Catch Density")
     }  
     
@@ -508,9 +549,9 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
         addHeatmap(data = all_centroids() %>% filter(sharks_class != "None"),
                    #gradient = "Spectral",
                    intensity = ~num_points,
-                   blur = 35,
+                   blur = 28,
                    #max = 0.05,
-                   radius = 30,
+                   radius = 20,
                    group = "Shark Density")
     } 
     
@@ -559,7 +600,7 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
         #clearShapes() %>%
         addControl(html=html_legend, position="topright") %>%
         addPolygons(
-          data=gridvalues(),
+          data = gridvalues(),
           fillColor = ~pro_pal(current_class),
           weight = 0.5,
           color = "black",
@@ -583,7 +624,19 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
                            group = "Current Intensity",
                            layerId = "Current Intensity")
     }
-      
+    
+    if (input$show_markers == TRUE){
+      proxy %>%
+        addAwesomeMarkers(data = user_markers(),
+                   lng = ~longitude,
+                   lat = ~latitude,
+                   icon = marker_icon,
+                   popup = ~poppem,
+                   group = "Markers")
+    }  else {
+      proxy %>%
+        clearGroup("Markers")
+    }
   })
 
 ############################# 
@@ -613,17 +666,27 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
              "Longitude" = "longitude",
              "Latitude" = "latitude",
              "Shared" = "shared",
+             "Marker" = "marker",
+             "Event Type" = "event",
              "Notes" = "notes",
              "Time Recorded (UTC)" = "timestamp",
              "User ID" = "user_id")
   })
   
-  userid_data <- reactive({
-    req(credentials()$info)
-    req(data_store$data)
-    data_store$data %>% 
-      filter(!is.na(latitude) & !is.na(longitude) & user_id %in% session$userData$user_id)
-  })
+
+    userid_data <- reactive({
+      threshold_time <- Sys.time() - as.difftime(input$days_u, units = "days")
+      req(credentials()$info)
+      req(data_store$data)
+      if (input$display_all == "No") {
+        data_store$data %>% 
+          filter(!is.na(latitude) & !is.na(longitude) & user_id %in% session$userData$user_id
+                 & timestamp >= threshold_time)
+      } else if (input$display_all == "Yes") {
+        data_store$data %>% 
+          filter(!is.na(latitude) & !is.na(longitude) & user_id %in% session$userData$user_id)
+      }
+    })  
   
   calculateOpacity <- function(day_value) {
     # Ensure there are timestamps to work with
@@ -662,40 +725,62 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
   # create user map
   output$user_map <- renderLeaflet({
     req(credentials()$info)
-
-    poppy <- paste0("<strong>Notes: </strong>", userid_data()$notes,
-                    "<br><strong>Date Recorded: </strong>", as.Date(userid_data()$timestamp))
-
-    umap <- leaflet() %>%
+    leaflet() %>%
       addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 6, maxZoom = 12)) %>%
-      setView(lng=-86.75, lat=29.75, zoom=9)  %>%
+      setView(lng=-90, lat=27.5, zoom=7)  %>%
       addScaleBar(position = 'topleft',
-                  options = scaleBarOptions(maxWidth = 100, metric = TRUE, imperial = TRUE, updateWhenIdle = FALSE)) %>%
+                  options = scaleBarOptions(maxWidth = 100, metric = TRUE, imperial = TRUE, updateWhenIdle = FALSE)) 
+    })
+    
+  observeEvent(input$update_u, {
+    
+    poppy <- paste0("<strong>Notes: </strong>", userid_data()[userid_data()$marker == "No",]$notes,
+                    "<br><strong>Date Recorded: </strong>", as.Date(userid_data()[userid_data()$marker == "No",]$timestamp))
+    poppem <- paste0("<strong>Event Type: </strong>", userid_data()[userid_data()$marker == "Yes",]$event,
+                     "<br><strong>Notes: </strong>", userid_data()[userid_data()$marker == "Yes",]$notes,
+                     "<br><strong>Date Recorded: </strong>", as.Date(userid_data()[userid_data()$marker == "Yes",]$timestamp))
+    
+    proxyu <- leafletProxy("user_map")
+    
+    proxyu %>%
+      clearControls() %>%
+      clearMarkers() %>%
+      clearImages() %>%
+      clearShapes() %>%
       leafem::addMouseCoordinates() %>%
       addSimpleGraticule(interval = 1,
                          group = "Graticule") %>%
-      #addControl(html=html_legend, position="topright") %>%
       addLayersControl(position="topleft", overlayGroups = c("Graticule"),
-                       options=layersControlOptions(collapsed=FALSE)) #%>%
-      # addMarkers(lng=-86.3, #input$user_long
-      #            lat=30.25, #input$user_lat
-      #            icon=boat_icon) #%>%
+                       options=layersControlOptions(collapsed=FALSE))
     
     if (input$geolocation == TRUE) {
-      umap <- umap %>%
+      proxyu %>%
         addMarkers(lng=input$long,
                    lat=input$lat,
                    icon=boat_icon) %>%
         addControl(html=html_legend, position="topright")
     }
     
-    if (nrow(userid_data()) >= 1) {
+    if (input$show_markers_u == TRUE & nrow(userid_data()[userid_data()$marker == "Yes",]) >= 1){
+      proxyu %>%
+        addAwesomeMarkers(data = userid_data()[userid_data()$marker == "Yes",],
+                          lng = ~longitude,
+                          lat = ~latitude,
+                          icon = marker_icon,
+                          popup = ~poppem,
+                          group = "Markers U")
+    }  else if  (input$show_markers == FALSE) {
+      proxyu %>%
+        clearGroup("Markers U")
+    }
+    
+    if (nrow(userid_data()[userid_data()$marker == "No",]) >= 1) {
       if (input$radio_points == "Species Encountered") {
-      umap <- umap %>%
-        clearGroup("Depredation Intensity") %>%
-        clearGroup("Current Intensity") %>%
-      addCircleMarkers(
-            data=userid_data(),
+        proxyu %>%
+          clearGroup("Depredation Intensity") %>%
+          clearGroup("Current Intensity") %>%
+          addCircleMarkers(
+            data=userid_data()[userid_data()$marker == "No",],
             lng=~as.numeric(longitude),
             lat=~as.numeric(latitude),
             weight=3,
@@ -713,11 +798,11 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
                              group = "Species Encountered",
                              layerId = "Species Encountered")
       } else if (input$radio_points == "Depredation Intensity") {
-        umap <- umap %>%
+        proxyu %>%
           clearGroup("Species Encountered") %>%
           clearGroup("Current Intensity") %>%
           addCircleMarkers(
-            data=userid_data(),
+            data=userid_data()[userid_data()$marker == "No",],
             lng=~as.numeric(longitude),
             lat=~as.numeric(latitude),
             weight=3,
@@ -736,11 +821,11 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
             group = "Depredation Intensity",
             layerId = "Depredation Intensity")
       } else if (input$radio_points == "Current Intensity") {
-        umap <- umap %>%
+        proxyu %>%
           clearGroup("Depredation Intensity") %>%
           clearGroup("Species Encountered") %>%
           addCircleMarkers(
-            data=userid_data(),
+            data=userid_data()[userid_data()$marker == "No",],
             lng=~as.numeric(longitude),
             lat=~as.numeric(latitude),
             weight=3,
@@ -760,8 +845,7 @@ pro_pal <- colorFactor(colors, levels=pro_levels, domain=c("None", "Moderate", "
             layerId = "Current Intensity")
       }
     }
-    return(umap)
   })
-  
+    
 } #end server
 
