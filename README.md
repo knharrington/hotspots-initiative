@@ -16,7 +16,7 @@ The app allows participating fishermen to submit real-time reports about depreda
 To ensure the integrity of the data, the app includes automated checks for common errors, such as missing values or out-of-bounds GPS coordinates. This feature helps maintain the reliability of the information being shared across the network.
 
 #### Real-Time Mapping Solutions
-Once data is submitted, the app sends it to a secure Google Sheet for storage and generates interactive maps that visualize depredation hotspots in near real-time. Users can visualize their own data or the group’s collective data in a 1 mi by 1 mi grid or a heat map and filter the entries by species type and time frame, enabling them to identify patterns and make informed decisions quickly. For example, fishermen can avoid areas with high rates of depredation, reducing unwanted interactions with predators such as sharks and dolphins and reducing bycatch mortality of damaged fish.
+Once data is submitted, the app sends it to a secure Google Sheet for storage and generates interactive maps that visualize depredation hotspots in near real-time. Users can visualize their own data or the group’s collective data in a 3 mi by 3 mi grid or a heat map and filter the entries by species type and time frame, enabling them to identify patterns and make informed decisions quickly. For example, fishermen can avoid areas with high rates of depredation, reducing unwanted interactions with predators such as sharks and dolphins and reducing bycatch mortality of damaged fish.
 
 ### Visit the App
 Visit the app [here](https://cfemm.shinyapps.io/destin-app) using credentials (username: test-user; password: hotspots).
