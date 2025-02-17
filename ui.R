@@ -1,7 +1,6 @@
 ################################################################################
-# This script builds the user interface for the Destin CFA app
+# This script builds the user interface for the CFA app
 ################################################################################
-
 
 dashboardPage(skin="black",
               
@@ -10,6 +9,7 @@ dashboardPage(skin="black",
     titleWidth = 400,
     tags$li(class = "dropdown", shinyauthr::logoutUI(id = "logout"), style="margin-right:15px; margin-top:10px;")
   ), # dashboard header
+  
   dashboardSidebar(
     width = 400,
     sidebarMenu(id="sidebarid", style="white-space: normal;",
@@ -19,8 +19,6 @@ dashboardPage(skin="black",
       menuItem("Submit Feedback", icon=icon("comment"), href="https://forms.gle/MgGVi5ZKF4pCYBuF9"),
       conditionalPanel(
         'input.sidebarid == "maptab"',
-        #hr(),
-        #helpText(HTML("Use the following selections to update the data displayed <br>on the map.")),
         sliderTextInput("days", "Days Since Reporting", choices=seq(from=1, to=14, by=1), selected=c(3), grid=TRUE),
         radioGroupButtons("radio_current", "Display Current Intensity", choices = c("Yes", "No"), selected="No"),
         conditionalPanel("input.radio_current == 'No'",
@@ -44,6 +42,7 @@ dashboardPage(skin="black",
       ) # conditional panel - user tab
     ) # sidebar menu
   ), # dashboard sidebar
+  
   dashboardBody(#use_theme(mytheme), #useShinyjs(), 
     
     tags$head(
@@ -74,7 +73,7 @@ dashboardPage(skin="black",
       tabItem(tabName="maptab",
         fluidRow(
           box(
-            width=8, status="primary", #title="About the Data",
+            width=8, status="primary", 
             HTML("ABOUT THE DATA<br>Displayed is a combination of data collected via the NOAA Observer Program and manually recorded observations.
               The total number of observations refers to the number of points informing the map. Grid cells are 3 mi by 3 mi and reflect the average
               value of points located inside each cell. Current intensity was calculated using averages of the current speed (m/s) from 2000-2017
@@ -84,7 +83,7 @@ dashboardPage(skin="black",
         ), # fluid row
         fluidRow(
           box(
-            width=12, title = "Map", status="primary", solidHeader=TRUE, collapsible=FALSE, #height=800,
+            width=12, title = "Map", status="primary", solidHeader=TRUE, collapsible=FALSE, 
             withLoader(leafletOutput("examplemap", height = 740), type="html", loader="loader4")
           ) # box -map
         ) # fluid row
@@ -156,7 +155,7 @@ dashboardPage(skin="black",
         ),
         fluidRow(
         box(
-          width=12, title = "Map", status="primary", solidHeader=TRUE, collapsible=TRUE, #height=600,
+          width=12, title = "Map", status="primary", solidHeader=TRUE, collapsible=TRUE, 
           withLoader(leafletOutput("user_map", height = 540), type="html", loader="loader4")
         ) # box - user mpa
         ) # fluidrow

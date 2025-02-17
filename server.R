@@ -1,5 +1,5 @@
 ################################################################################
-# This script is the server for the Destin CFA app
+# This script is the server for the CFA app
 ################################################################################
 #remove(list = ls())
 
@@ -77,26 +77,19 @@ function(input, output, session) {
     })
   }
   
-  # Fetch initial data on app startup
+  # Fetch initial data on app start-up
   update_sheet_data()
   
   # Confirm data entries
   observeEvent(input$submit, {
-    #showNotification("submit button pressed")
-    #print("submit button pressed")
-    
-    # Prevent duplicate entries due to double-clicking
-    #shinyjs::disable("submit")
-    
     ask_confirmation(
       inputId = "confirm",
       title = "Confirm Observations",
       btn_colors = c("#dd4b39","#3b8dbc")
     )
-    
   })
   
-  # perform error checks if data is confirmed
+  # Perform error checks if data is confirmed
   observeEvent(input$confirm,{
     
     if (isTRUE(input$confirm)) {
@@ -106,21 +99,18 @@ function(input, output, session) {
     user_id <- session$userData$user_id
     
     #print(input$geolocation)
-    # Check if the user wants to use the current location - turned off for now
     
     if (input$check_loc == "Yes") {
       if (input$geolocation == TRUE) {
         lon <- as.numeric(input$long)
         #print(input$long)
-      } else {
-      #showNotification("Unable to retrieve location. Please enter manually.", type = "error")  
+      } else {  
       show_alert("Error writing data",
                  text = "Unable to retrieve location. Please enter manually.",
                  type="error", btn_colors = "#dd4b39")
       return(NULL)
       }
       shinyjs::enable("submit")
-      #return(NULL)
     } else {
       lon <- as.numeric(input$text_long)
     }
@@ -128,11 +118,9 @@ function(input, output, session) {
     print(lon)
     
     if (is.na(lon) || lon > bbox$xmax || lon < bbox$xmin || is.null(lon)) {
-      #print("Error: Longitude is outside the valid range.")
       show_alert("Error writing data",
                  text = paste0("Valid longitudes are between ", round(bbox$xmin, 2), "W and ", round(bbox$xmax, 2), "W."),
                  type="error", btn_colors = "#dd4b39")
-      #showNotification("Please enter a valid longitude between -89W and -83W.", type = "error")
       shinyjs::enable("submit")
       return(NULL)  
     }
@@ -145,11 +133,9 @@ function(input, output, session) {
       show_alert("Error writing data",
                  text = "Unable to retrieve location. Please enter manually.",
                  type="error", btn_colors = "#dd4b39")
-      #showNotification("Unable to retrieve location. Please enter manually.", type = "error")
       return(NULL)
       }
       shinyjs::enable("submit")
-      #return(NULL)
     } else {
       lat <- as.numeric(input$text_lat)
     }
@@ -160,7 +146,6 @@ function(input, output, session) {
       show_alert("Error writing data",
                  text = paste0("Valid latitudes are between ", round(bbox$ymin, 2), "N and ", round(bbox$ymax, 2), "N."),
                  type="error", btn_colors = "#dd4b39")
-      #showNotification("Please enter a valid latitude between 28.9N and 30.5N.", type = "error")
       shinyjs::enable("submit")
       return(NULL)  
     }
@@ -215,13 +200,8 @@ function(input, output, session) {
       timestamp = timestamp,
       user_id = as.character(user_id)
     ) 
-    #df(dplyr::bind_rows(df(), response_data))
-    #showNotification("Response data created")
     
     values <- read_sheet(ss = sheet_id, sheet="main")
-    
-    #showNotification(paste("Rows in sheet:", nrow(values)))
-    # Check to see if sheet has any existing data. If not, write to it and set up column names. Otherwise, append to it.
     
     # Merge the new responses with the existing Google Sheet
     tryCatch({
@@ -303,17 +283,16 @@ noaa_vl_prop_sf <- reactive({st_as_sf(noaa_vl_prop(), coords = c("UNIQUE_RET_LON
 
 # Perform the spatial join
 grid_join <- reactive({setDT(st_join(noaa_vl_prop_sf(), gridshp, join = st_intersects))})
-#grid_join_dt <- setDT(grid_join)
 
 # Filter and aggregate the data if the cells contain at least 3 vessels contributing
 filtered_data <- reactive({
   grid_join() %>%
     group_by(GRID_ID) %>%
     dplyr::reframe(
-      PROP_DEAD.mean = mean(PROP_DEAD, na.rm = TRUE),  # Calculate the mean PROP_DEAD for each grid
+      PROP_DEAD.mean = mean(PROP_DEAD, na.rm = TRUE),  
       NUM_SHARKS.mean = mean(NUM_SHARKS, na.rm=TRUE),
-      num_points = n(),  # Count the number of points in each grid
-      unique_vessel_ids = n_distinct(VESSEL_ID)  # Count unique VESSEL_IDs in each grid
+      num_points = n(),  
+      unique_vessel_ids = n_distinct(VESSEL_ID)  
     ) %>%
     filter(num_points >= 3 & unique_vessel_ids >= 3)  # Apply the filtering condition: at least 3 points and at least 3 unique VESSEL_IDs
 })
@@ -346,13 +325,10 @@ suppressWarnings(
     st_centroid(gridvalues()) %>% select(GRID_ID, depred_class, current_class, sharks_class, dolphins_class, num_points)
   })
 )
-# grid_centroids_sd <- reactive({
-#   st_centroid(gridvalues()) %>% filter(depred_class != "None")
-# })
 
 ######################################### user data
 
-user_data <- reactive({data_store$data %>% #data_store$data %>% sheet_data %>% 
+user_data <- reactive({data_store$data %>% 
   filter(marker == "No" & shared == TRUE & !is.na(longitude) & !is.na(latitude)) %>% # only add shareable data
   mutate(
     current_bin = case_when(
@@ -425,7 +401,7 @@ suppressWarnings(
 
 user_markers <- reactive({
   threshold_time <- Sys.time() - as.difftime(input$days, units = "days")
-  data_store$data %>% #data_store$data %>% sheet_data %>% 
+  data_store$data %>% 
     filter(marker == "Yes" & shared == TRUE & timestamp >= threshold_time
            & !is.na(longitude) & !is.na(latitude)) # only add shareable data
 })
@@ -652,7 +628,6 @@ marker_icon <- makeAwesomeIcon(icon = "exclamation",
 
 ############################
 # User data tab outputs
-  
   output$user_data <- DT::renderDT({
     req(credentials()$info)
     req(data_store$data)
@@ -673,7 +648,6 @@ marker_icon <- makeAwesomeIcon(icon = "exclamation",
              "User ID" = "user_id")
   })
   
-
     userid_data <- reactive({
       threshold_time <- Sys.time() - as.difftime(input$days_u, units = "days")
       req(credentials()$info)
@@ -733,7 +707,6 @@ marker_icon <- makeAwesomeIcon(icon = "exclamation",
     })
     
   observeEvent(input$update_u, {
-    
     poppy <- paste0("<strong>Notes: </strong>", userid_data()[userid_data()$marker == "No",]$notes,
                     "<br><strong>Date Recorded: </strong>", as.Date(userid_data()[userid_data()$marker == "No",]$timestamp))
     poppem <- paste0("<strong>Event Type: </strong>", userid_data()[userid_data()$marker == "Yes",]$event,

@@ -1,11 +1,8 @@
 ################################################################################
-# This script is the global environment for the destin app
+# This script is the global environment for the CFA app
 ################################################################################
 
-## FUNCTIONS TO ADD
-##    -modify or delete previous entries
-
-# load packages
+# Load packages
 {
   library(tidyverse)
   library(data.table)
