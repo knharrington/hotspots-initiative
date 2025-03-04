@@ -73,11 +73,16 @@ dashboardPage(skin="black",
       tabItem(tabName="maptab",
         fluidRow(
           box(
-            width=8, status="primary", 
-            HTML("ABOUT THE DATA<br>Displayed is a combination of data collected via the NOAA Observer Program and manually recorded observations.
-              The total number of observations refers to the number of points informing the map. Grid cells are 3 mi by 3 mi and reflect the average
-              value of points located inside each cell. Current intensity was calculated using averages of the current speed (m/s) from 2000-2017
-              during the month of October.")),
+            width=8, status="primary",
+            div(
+              style = "height: 70px; overflow-y: auto; padding-right: 10px;",
+              HTML("ABOUT THE DATA<br>Displayed is a combination of data collected via the NOAA Observer Program and manually recorded observations.
+                    The total number of observations refers to the number of points informing the map. Grid cells are 3 mi by 3 mi and reflect the average
+                    value of points located inside each cell. Default bottom current intensity observations were calculated using averages of the current speed 
+                    (m/s) from 2000-2017 during the month of October from GRIIDC. Surface current vectors are near real-time and provided by the 
+                    Gulf of America Coastal Ocean Observing System.")
+            )
+            ), # box
           infoBoxOutput("text_obs", width=4),
           #infoBoxOutput()
         ), # fluid row
