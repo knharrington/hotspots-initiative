@@ -45,3 +45,5 @@ load("preprocess.RData")
 googledrive::drive_auth(cache = ".secrets", email = "knharrington@mote.org")
 googlesheets4::gs4_auth(token = drive_token())
 
+# Define water current data
+water_currents <- "https://geo.gcoos.org/data/hycom/hycom_surface_current.json"
