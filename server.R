@@ -22,7 +22,7 @@ function(input, output, session) {
     active = reactive(credentials()$user_auth)
   )
   
-  # Dynamically display the UI according to login permissions
+# Dynamically display the UI according to login permissions
   observeEvent(credentials()$user_auth, {
     if (credentials()$user_auth) {
       session$userData$user_id <- credentials()$info$user
@@ -444,7 +444,15 @@ marker_icon <- makeAwesomeIcon(icon = "exclamation",
       leafem::addMouseCoordinates() %>%
       addSimpleGraticule(interval = 1, 
                          group = "Graticule") %>%
-      addLayersControl(position = "topleft", overlayGroups = c("Graticule"), 
+      addVelocity(content=water_currents,
+                  group = "Surface Currents",
+                  options= velocityOptions(
+                    speedUnit="m/s",
+                    maxVelocity= 2.0,
+                    velocityScale= 0.5,
+                    velocityType="Water"
+                  )) %>%
+      addLayersControl(position = "topleft", overlayGroups = c("Graticule", "Surface Currents"), 
                        options = layersControlOptions(collapsed = FALSE))
     
     if (input$geolocation == TRUE) {
@@ -723,8 +731,16 @@ marker_icon <- makeAwesomeIcon(icon = "exclamation",
       leafem::addMouseCoordinates() %>%
       addSimpleGraticule(interval = 1,
                          group = "Graticule") %>%
-      addLayersControl(position="topleft", overlayGroups = c("Graticule"),
-                       options=layersControlOptions(collapsed=FALSE))
+      addVelocity(content=water_currents,
+                  group = "Surface Currents",
+                  options= velocityOptions(
+                    speedUnit="m/s",
+                    maxVelocity= 2.0,
+                    velocityScale= 0.5,
+                    velocityType="Water"
+                  )) %>%
+    addLayersControl(position = "topleft", overlayGroups = c("Graticule", "Surface Currents"), 
+                     options = layersControlOptions(collapsed = FALSE))
     
     if (input$geolocation == TRUE) {
       proxyu %>%
