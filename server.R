@@ -4,7 +4,7 @@
 #remove(list = ls())
 
 function(input, output, session) {
-
+ 
 # Handle user authentication by only showing the main user interface when credentials are satisfied
   shinyjs::hide(id="main_ui")
 
