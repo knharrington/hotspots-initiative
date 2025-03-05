@@ -5,8 +5,8 @@
 dashboardPage(skin="black",
               
   dashboardHeader(
-    title = div(img(src="cfa-logo.png", style = "width:50px;height:50px"), "Commercial and Charter-for-hire Reef Fish Fisheries"),
-    titleWidth = 400,
+    title = "Commercial and Charter-for-Hire Reef Fish Fisheries",
+    titleWidth = 500,
     tags$li(class = "dropdown", shinyauthr::logoutUI(id = "logout"), style="margin-right:15px; margin-top:10px;")
   ), # dashboard header
   
@@ -81,7 +81,7 @@ dashboardPage(skin="black",
                     value of points located inside each cell. Default bottom current intensity observations were calculated using averages of the current speed 
                     (m/s) from 2000-2017 during the month of October from GRIIDC. Surface current vectors are near real-time and provided by the 
                     Gulf of America Coastal Ocean Observing System.")
-            )
+            ) # div
             ), # box
           infoBoxOutput("text_obs", width=4),
           #infoBoxOutput()
@@ -148,22 +148,22 @@ dashboardPage(skin="black",
           helpText(em("*Geolocation services in your browser may provide approximate latitude and longitude data, 
                    which can be affected by factors like device settings, network conditions, and location permissions, 
                    potentially leading to slight inaccuracies in map plotting."))
-        )#, # box
+        ) # box
         ) # fluidrow
-      ), #tab item
+      ), # tab item
       tabItem(tabName="usertab",
+        fluidRow(
+          box(
+            width=12, title = "Map", status="primary", solidHeader=TRUE, collapsible=TRUE, 
+            withLoader(leafletOutput("user_map", height = 540), type="html", loader="loader4")
+          ) # box - user map
+        ), # fluid row
         fluidRow(
         box(
           width=12, title="User Data", status="primary", solidHeader=TRUE, collapsible=TRUE,
           div(DTOutput("user_data"), style="overflow-y: auto; height=300px")
-        ) # box -table
-        ),
-        fluidRow(
-        box(
-          width=12, title = "Map", status="primary", solidHeader=TRUE, collapsible=TRUE, 
-          withLoader(leafletOutput("user_map", height = 540), type="html", loader="loader4")
-        ) # box - user mpa
-        ) # fluidrow
+        ) # box - table
+        ) # fluid row
       ) #tab item
     ) # tab items
     ) # div main ui 
