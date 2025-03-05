@@ -5,7 +5,7 @@
 dashboardPage(skin="black",
               
   dashboardHeader(
-    title = div(img(src="cfa-logo.png", style = "width:50px;height:50px"), "Charter Fisherman's Association"),
+    title = div(img(src="cfa-logo.png", style = "width:50px;height:50px"), "Commercial and Charter-for-hire Reef Fish Fisheries"),
     titleWidth = 400,
     tags$li(class = "dropdown", shinyauthr::logoutUI(id = "logout"), style="margin-right:15px; margin-top:10px;")
   ), # dashboard header
@@ -98,9 +98,9 @@ dashboardPage(skin="black",
         box(width=12, status="primary", title="Record New Observation", solidHeader=TRUE,
           helpText("Please enter your observations using the following inputs."),
           fluidRow(
-            column(width=6, awesomeRadio("which_obs", label="Observation Type", choices = c("Catch", "Event"), selected = "Catch", inline=TRUE)
+            column(width=6, awesomeRadio("which_obs", label="Observation Type", choices = c("Fishing", "Event"), selected = "Fishing", inline=TRUE)
           )), # fluid row
-          conditionalPanel(condition="input.which_obs == 'Catch'",
+          conditionalPanel(condition="input.which_obs == 'Fishing'",
             fluidRow(
             column(width=4, pickerInput("select_current", label = "Current Intensity", 
                                         choices = c("None", "Moderate", "High"), selected = "None",
