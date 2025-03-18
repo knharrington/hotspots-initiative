@@ -5,8 +5,8 @@
 dashboardPage(skin="black",
               
   dashboardHeader(
-    title = div(img(src="cfa-logo.png", style = "width:50px;height:50px"), "Commercial and Charter-for-hire Reef Fish Fisheries"),
-    titleWidth = 400,
+    title = "Commercial and Charter-for-Hire Reef Fish Fisheries",
+    titleWidth = 500,
     tags$li(class = "dropdown", shinyauthr::logoutUI(id = "logout"), style="margin-right:15px; margin-top:10px;")
   ), # dashboard header
   
@@ -154,16 +154,16 @@ dashboardPage(skin="black",
       tabItem(tabName="usertab",
         fluidRow(
         box(
-          width=12, title="User Data", status="primary", solidHeader=TRUE, collapsible=TRUE,
-          div(DTOutput("user_data"), style="overflow-y: auto; height=300px")
-        ) # box -table
-        ),
-        fluidRow(
-        box(
           width=12, title = "Map", status="primary", solidHeader=TRUE, collapsible=TRUE, 
           withLoader(leafletOutput("user_map", height = 540), type="html", loader="loader4")
-        ) # box - user mpa
-        ) # fluidrow
+        ) # box - user map
+        ), # fluidrow
+        fluidRow(
+          box(
+            width=12, title="User Data", status="primary", solidHeader=TRUE, collapsible=TRUE,
+            div(DTOutput("user_data"), style="overflow-y: auto; height=300px")
+          ) # box -table
+        ) # fluid row
       ) #tab item
     ) # tab items
     ) # div main ui 
