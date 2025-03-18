@@ -2,7 +2,6 @@
 # This script is the server for the CFA app
 ################################################################################
 #remove(list = ls())
-TEST
 
 function(input, output, session) {
     
@@ -38,7 +37,7 @@ function(input, output, session) {
     req(credentials()$info)
     showModal(
       ui = modalDialog(
-        title = "Welcome to the Charter Fishermen's Association Hotspot Mapper",
+        title = "Welcome to the Commercial and Charter-for-hire Reef Fish Fisheries Hotspot Mapper",
         tags$div(
           tags$p("This app allows you to filter data on a map, record new observations, and view your own recorded data over time."),
           tags$h4("How to Use the App:"),
@@ -62,10 +61,10 @@ function(input, output, session) {
   # }
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
   
-  # Create a reactiveValues object to store the Google Sheet data
+  # Create a reactiveValues object to store the observation database
   data_store <- reactiveValues(data = NULL)
   
-  # Function to fetch and update the data from Google Sheet
+  # Function to fetch and update the data (e.g., from Google Sheets)
   update_sheet_data <- function() {
     tryCatch({
       sheet_data <- read_sheet(ss = sheet_id, sheet = "main")
@@ -157,13 +156,13 @@ function(input, output, session) {
       input$text_notes
     }
     
-    marker <- if (input$which_obs == "Catch") {
+    marker <- if (input$which_obs == "Fishing") {
       "No"
     }  else {
       "Yes"
     }
     
-    event <- if (input$which_obs == "Catch") {
+    event <- if (input$which_obs == "Fishing") {
       NA
     } else {
       input$select_event
@@ -258,13 +257,11 @@ function(input, output, session) {
   
 # Filter dataset based on user inputs  
 filtered_prop <- reactive({
-    noaa_vl_des %>% filter(Days_Report <= input$days[1])#,
-                           #Days_Report <= input$days[1])#,
-                           #Effort_ID <= input$effort)
+    noaa_vl_des %>% filter(Days_Report <= input$days[1])
 })
 
 
-# Calculate fields for NOAA dataset 
+# Calculate fields from NOAA dataset 
 noaa_vl_prop <- reactive({
   filtered_prop() %>% 
   filter(!is.na(LAT_BEGIN_SET) & !is.na(LON_BEGIN_SET)) %>%
@@ -327,7 +324,7 @@ suppressWarnings(
   })
 )
 
-######################################### user data
+### Integrate user-provided data
 
 user_data <- reactive({data_store$data %>% 
   filter(marker == "No" & shared == TRUE & !is.na(longitude) & !is.na(latitude)) %>% # only add shareable data
