@@ -37,7 +37,7 @@ function(input, output, session) {
     req(credentials()$info)
     showModal(
       ui = modalDialog(
-        title = "Welcome to the Commercial and Charter-for-hire Reef Fish Fisheries Hotspot Mapper",
+        title = "Welcome to the Commercial and Charter-for-Hire Reef Fish Fisheries Hotspot Mapping Application",
         tags$div(
           tags$p("This app allows you to filter data on a map, record new observations, and view your own recorded data over time."),
           tags$h4("How to Use the App:"),
@@ -422,7 +422,7 @@ pro_levels <- c("None", "Moderate", "High")
 pro_pal <- colorFactor(colors, levels = pro_levels, domain = c("None", "Moderate", "High"))
 marker_icon <- makeAwesomeIcon(icon = "exclamation",
                                library = "fa",
-                               markerColor = "darkred",
+                               markerColor = "#dd4b39",
                                iconColor = "#FFFFFF")
 
   observeEvent(input$update, {
@@ -439,7 +439,6 @@ marker_icon <- makeAwesomeIcon(icon = "exclamation",
       clearShapes() %>%
       clearImages() %>%
       clearControls() %>%
-      leafem::addMouseCoordinates() %>%
       addSimpleGraticule(interval = 1, 
                          group = "Graticule") %>%
       addVelocity(content=water_currents,
@@ -458,7 +457,8 @@ marker_icon <- makeAwesomeIcon(icon = "exclamation",
         addMarkers(lng = input$long,
                    lat = input$lat,
                    icon = boat_icon) %>%
-        addControl(html = html_legend, position="topright")
+        addControl(html = html_legend, position="topright") %>%
+        leafem::addMouseCoordinates()
     }
     
     if (input$radio_depred == "Total" & input$radio_layer == "Intensity (grid)"){
@@ -707,7 +707,7 @@ marker_icon <- makeAwesomeIcon(icon = "exclamation",
     req(credentials()$info)
     leaflet() %>%
       addProviderTiles("Esri.NatGeoWorldMap", options = providerTileOptions(minZoom = 6, maxZoom = 12)) %>%
-      setView(lng=-90, lat=27.5, zoom=7)  %>%
+      setView(lng=-90, lat=28, zoom=7)  %>%
       addScaleBar(position = 'topleft',
                   options = scaleBarOptions(maxWidth = 100, metric = TRUE, imperial = TRUE, updateWhenIdle = FALSE)) 
     })
@@ -726,7 +726,6 @@ marker_icon <- makeAwesomeIcon(icon = "exclamation",
       clearMarkers() %>%
       clearImages() %>%
       clearShapes() %>%
-      leafem::addMouseCoordinates() %>%
       addSimpleGraticule(interval = 1,
                          group = "Graticule") %>%
       addVelocity(content=water_currents,
@@ -737,15 +736,16 @@ marker_icon <- makeAwesomeIcon(icon = "exclamation",
                     velocityScale= 0.5,
                     velocityType="Water"
                   )) %>%
-    addLayersControl(position = "topleft", overlayGroups = c("Graticule", "Surface Currents"), 
-                     options = layersControlOptions(collapsed = FALSE))
+      addLayersControl(position = "topleft", overlayGroups = c("Graticule", "Surface Currents"), 
+                     options = layersControlOptions(collapsed = FALSE)) 
     
     if (input$geolocation == TRUE) {
       proxyu %>%
         addMarkers(lng=input$long,
                    lat=input$lat,
                    icon=boat_icon) %>%
-        addControl(html=html_legend, position="topright")
+        addControl(html=html_legend, position="topright") %>%
+        leafem::addMouseCoordinates()
     }
     
     if (input$show_markers_u == TRUE & nrow(userid_data()[userid_data()$marker == "Yes",]) >= 1){
