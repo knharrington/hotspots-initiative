@@ -1,6 +1,6 @@
 # hotspots-initiative
 
-![image](https://github.com/user-attachments/assets/1caebb29-3e0b-4995-a37f-75b108b0d7b7)
+![image](https://github.com/user-attachments/assets/d2102bbb-2321-413e-8bec-b9e6a7e419e8)
 
 ### About this Project
 Bycatch, the unintentional capture of species fishers don’t want, can’t sell, or can’t keep, can be a significant challenge in commercial fisheries. Beyond its environmental impact, bycatch creates economic inefficiencies and regulatory hurdles for the fishing industry. Bycatch issues became particularly pressing after the 2010 Deepwater Horizon oil spill, which disrupted Gulf Coast ecosystems and fisheries.
