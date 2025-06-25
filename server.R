@@ -89,6 +89,12 @@ function(input, output, session) {
     )
   })
   
+  # fix marker bug for stale values when switching between fishing vs event radio buttons
+  which_obs <- reactiveVal("Fishing")
+  observeEvent(input$which_obs, {
+    which_obs(input$which_obs)
+  })
+  
   # Perform error checks if data is confirmed
   observeEvent(input$confirm,{
     
@@ -156,7 +162,7 @@ function(input, output, session) {
       input$text_notes
     }
     
-    marker <- if (input$which_obs == "Fishing") {
+    marker <- if (which_obs() == "Fishing") { #input$which_obs
       "No"
     }  else {
       "Yes"
